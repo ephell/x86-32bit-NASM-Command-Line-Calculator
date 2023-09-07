@@ -5,13 +5,23 @@ STDIN equ 0
 STDOUT equ 1
 
 section .data
-    STARTUP_MSG db "x86 ASM Calculator.", 0xa
-    STARTUP_MSG_LEN equ $ - STARTUP_MSG
-    SEPARATOR_MSG db "----------------------------------------", 0xa
-    SEPARATOR_MSG_LEN equ $ - SEPARATOR_MSG
+    MSG_STARTUP db "------------x86 ASM Calculator------------", 0xa
+    MSG_LEN_STARTUP equ $ - MSG_STARTUP
+    MSG_SEPARATOR db "------------------------------------------", 0xa
+    MSG_LEN_SEPARATOR equ $ - MSG_SEPARATOR
+    MSG_SELECT_OPERATION db "Select operation:", 0xa
+    MSG_LEN_SELECT_OPERATION equ $ - MSG_SELECT_OPERATION
+    MSG_OP_ADDITION db "1. Addition.", 0xa
+    MSG_LEN_OP_ADDITION equ $ - MSG_OP_ADDITION
+    MSG_OP_SUBTRACTION db "2. Subtraction.", 0xa
+    MSG_LEN_OP_SUBTRACTION equ $ - MSG_OP_SUBTRACTION
+    MSG_OP_MULTIPLICATION db "3. Multiplication.", 0xa
+    MSG_LEN_OP_MULTIPLICATION equ $ - MSG_OP_MULTIPLICATION
+    MSG_OP_DIVISION db "4. Division.", 0xa
+    MSG_LEN_OP_DIVISION equ $ - MSG_OP_DIVISION
+    MSG_INVALID_CHOICE db "Invalid choice.", 0xa
+    MSG_LEN_INVALID_CHOICE equ $ - MSG_INVALID_CHOICE
     USER_CHOICE_BUFFER_LEN equ 255
-    INVALID_CHOICE_MSG db "Invalid choice.", 0xa
-    INVALID_CHOICE_MSG_LEN equ $ - INVALID_CHOICE_MSG
 
 section .bss
     user_choice_buffer resb 255
@@ -61,8 +71,8 @@ read_user_choice:
     read_user_choice_invalid_input:
         mov eax, SYS_WRITE
         mov ebx, STDOUT
-        mov ecx, INVALID_CHOICE_MSG
-        mov edx, INVALID_CHOICE_MSG_LEN
+        mov ecx, MSG_INVALID_CHOICE
+        mov edx, MSG_LEN_INVALID_CHOICE
         int 0x80
         jmp read_user_choice_quit
 
@@ -116,20 +126,58 @@ output_startup_message:
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, SEPARATOR_MSG
-    mov edx, SEPARATOR_MSG_LEN
+    mov ecx, MSG_SEPARATOR
+    mov edx, MSG_LEN_SEPARATOR
     int 0x80
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, STARTUP_MSG
-    mov edx, STARTUP_MSG_LEN
+    mov ecx, MSG_STARTUP
+    mov edx, MSG_LEN_STARTUP
+    int 0x80
+
+    ; Separator
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_SEPARATOR
+    mov edx, MSG_LEN_SEPARATOR
     int 0x80
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, SEPARATOR_MSG
-    mov edx, SEPARATOR_MSG_LEN
+    mov ecx, MSG_SELECT_OPERATION
+    mov edx, MSG_LEN_SELECT_OPERATION
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_OP_ADDITION
+    mov edx, MSG_LEN_OP_ADDITION
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_OP_SUBTRACTION
+    mov edx, MSG_LEN_OP_SUBTRACTION
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_OP_MULTIPLICATION
+    mov edx, MSG_LEN_OP_MULTIPLICATION
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_OP_DIVISION
+    mov edx, MSG_LEN_OP_DIVISION
+    int 0x80
+
+    ; Separator
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_SEPARATOR
+    mov edx, MSG_LEN_SEPARATOR
     int 0x80
 
     mov esp, ebp
