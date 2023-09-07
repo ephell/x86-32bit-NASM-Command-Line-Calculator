@@ -33,7 +33,7 @@ section .text
 _start:
     call output_startup_message
     call read_user_choice
-    call print_user_choice
+    ; call print_user_choice
     call convert_string_to_number
 
     mov eax, 1
@@ -44,39 +44,41 @@ read_user_choice:
     push ebp
     mov ebp, esp
 
-    ; Read stdin buffer
-    mov eax, SYS_READ
-    mov ebx, STDIN
-    mov ecx, user_choice_buffer
-    mov edx, USER_CHOICE_BUFFER_LEN
-    int 0x80
-
-    ; Making sure all bytes in buffer are numbers
-    xor edi, edi ; Zero out loop counter
-    mov esi, user_choice_buffer ; Load buffer
-    read_user_choice_loop:
-        mov al, byte [esi + edi] ; Get first char in the buffer
-        cmp al, 0xa ; Check if it's a new line character
-        je read_user_choice_quit ; Jump if new line character
-
-        ; Check if read byte represents a digit in hex
-        cmp al, "0"
-        jl read_user_choice_invalid_input
-        cmp al, "9"
-        jg read_user_choice_invalid_input
-        
-        inc edi
-        jmp read_user_choice_loop
-
-    read_user_choice_invalid_input:
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_INVALID_CHOICE
-        mov edx, MSG_LEN_INVALID_CHOICE
+    read_user_choice_start:
+        ; Read stdin buffer
+        mov eax, SYS_READ
+        mov ebx, STDIN
+        mov ecx, user_choice_buffer
+        mov edx, USER_CHOICE_BUFFER_LEN
         int 0x80
-        jmp read_user_choice_quit
 
-    read_user_choice_quit:
+        ; Making sure all bytes in buffer are numbers
+        xor edi, edi ; Zero out loop counter
+        mov esi, user_choice_buffer ; Load buffer
+
+        read_user_choice_loop:
+            mov al, byte [esi + edi] ; Get first char in the buffer
+            cmp al, 0xa ; Check if it's a new line character
+            je read_user_choice_end
+
+            ; Check if read byte represents a digit in hex
+            cmp al, "0"
+            jl read_user_choice_invalid_input
+            cmp al, "9"
+            jg read_user_choice_invalid_input
+            
+            inc edi
+            jmp read_user_choice_loop
+
+        read_user_choice_invalid_input:
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_INVALID_CHOICE
+            mov edx, MSG_LEN_INVALID_CHOICE
+            int 0x80
+            jmp read_user_choice_start
+
+    read_user_choice_end:
         mov esp, ebp
         pop ebp
         ret
