@@ -9,7 +9,7 @@ section .data
     MSG_LEN_STARTUP equ $ - MSG_STARTUP
     MSG_SEPARATOR db "------------------------------------------", 0xa
     MSG_LEN_SEPARATOR equ $ - MSG_SEPARATOR
-    MSG_SELECT_OPERATION db "Select operation:", 0xa
+    MSG_SELECT_OPERATION db "Select operation: "
     MSG_LEN_SELECT_OPERATION equ $ - MSG_SELECT_OPERATION
     MSG_OP_ADDITION db "1. Addition.", 0xa
     MSG_LEN_OP_ADDITION equ $ - MSG_OP_ADDITION
@@ -19,13 +19,28 @@ section .data
     MSG_LEN_OP_MULTIPLICATION equ $ - MSG_OP_MULTIPLICATION
     MSG_OP_DIVISION db "4. Division.", 0xa
     MSG_LEN_OP_DIVISION equ $ - MSG_OP_DIVISION
-    MSG_INVALID_CHOICE db "Invalid choice. Try again:", 0xa
+    MSG_INVALID_CHOICE db "Invalid choice. Try again: "
     MSG_LEN_INVALID_CHOICE equ $ - MSG_INVALID_CHOICE
+    MSG_ENTER_FIRST_NUMBER db "Enter first number: "
+    MSG_LEN_ENTER_FIRST_NUMBER equ $ - MSG_ENTER_FIRST_NUMBER
+    MSG_ENTER_SECOND_NUMBER db "Enter second number: "
+    MSG_LEN_ENTER_SECOND_NUMBER equ $ - MSG_ENTER_SECOND_NUMBER
+    MSG_INVALID_INPUT db "Invalid input. Try again: "
+    MSG_LEN_INVALID_INPUT equ $ - MSG_INVALID_INPUT
+    MSG_CALCULATION_RESULT db "Result: "
+    MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
+    USER_NUM_ASCII_BUFFER_LEN equ 11 ; 10 + 1 for null terminator
+    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 11 ; 10 + 1 for null terminator
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
-    converted_string resd 1
+    user_num_1_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
+    user_num_1_decimal_buffer resd 1 ; For storage after conversion from ASCII
+    user_num_2_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
+    user_num_2_decimal_buffer resd 1 ; For storage after conversion from ASCII
+    calculation_result_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
+    calculation_result_decimal_buffer resd 1
 
 section .text
     global _start
@@ -33,12 +48,11 @@ section .text
 _start:
     call print_startup_message
 
-    call read_user_choice
-
-    call start_user_selected_operation
-    ; call print_user_choice
-    ; call start_operation
-    ; call convert_string_to_number
+    _start_loop:
+        call print_select_operation
+        call read_user_choice
+        call start_user_selected_operation
+        jmp _start_loop
 
     mov eax, 1
     mov ebx, 0
@@ -49,6 +63,9 @@ read_user_choice:
     mov ebp, esp
 
     read_user_choice_start:
+        ; Clear the buffer from previous inputs
+        call clear_user_choice_ascii_buffer
+
         ; Read stdin buffer
         mov eax, SYS_READ
         mov ebx, STDIN
@@ -72,6 +89,8 @@ read_user_choice:
             jg read_user_choice_invalid_input
             
             inc edi
+            cmp edi, 2
+            je read_user_choice_invalid_input
             jmp read_user_choice_loop
 
         read_user_choice_invalid_input:
@@ -92,6 +111,76 @@ read_user_choice:
         pop ebp
         ret
 
+clear_user_choice_ascii_buffer:
+    push ebp
+    mov ebp, esp
+
+    mov esi, user_choice_ascii_buffer  ; Load the address of the buffer from the function parameter
+    mov ecx, USER_CHOICE_ASCII_BUFFER_LEN ; Load the length of the buffer from the function parameter
+
+    xor eax, eax        ; Set eax to 0 (the value to clear the buffer with)
+
+    clear_loop:
+        mov [esi], al   ; Set the current byte in the buffer to 0
+        inc esi         ; Move to the next byte
+        loop clear_loop ; Continue until ecx reaches 0
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+read_number:
+    ; Read user input from STDIN, convert string to decimal and store in buffer.
+    ; Arg_1 (ebp+8) - address to buffer that user's input from STDIN (ASCII).
+    ; Arg_2 (ebp+12) - address to buffer that will hold decimal representation.
+    ; Push both memory addresses on to the stack before calling this function.
+    push ebp
+    mov ebp, esp
+
+    read_number_start:
+        ; Read stdin buffer
+        mov eax, SYS_READ
+        mov ebx, STDIN
+        mov ecx, [ebp + 8]
+        mov edx, USER_NUM_ASCII_BUFFER_LEN
+        int 0x80
+
+        xor edi, edi ; Zero out loop counter
+        mov esi, [ebp + 8] ; Load ASCII buffer
+
+        read_number_loop:
+            mov al, byte [esi + edi] ; Get first char in the ASCII buffer
+            cmp al, 0xa ; Check if it's a new line character
+            je read_number_convert_from_ascii_to_decimal
+
+            ; Check if the read byte represents a digit in hex
+            cmp al, "1"
+            jl read_number_invalid_input
+            cmp al, "9"
+            jg read_number_invalid_input
+            
+            inc edi
+            jmp read_number_loop
+
+        read_number_invalid_input:
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_INVALID_INPUT
+            mov edx, MSG_LEN_INVALID_INPUT
+            int 0x80
+            jmp read_number_start ; Read input again if invalid
+
+        read_number_convert_from_ascii_to_decimal:
+            push dword [ebp + 12] ; Pushing the decimal buffer
+            push dword [ebp + 8] ; Pushing the ASCII buffer
+            call convert_string_to_number
+            jmp read_number_end
+
+    read_number_end:
+        mov esp, ebp
+        pop ebp
+        ret
+
 start_user_selected_operation:
     push ebp
     mov ebp, esp
@@ -106,33 +195,75 @@ start_user_selected_operation:
     cmp eax, "4"
     je start_operation_division
 
+    start_operation_addition:
+        ; Output 'Enter first number: '
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_ENTER_FIRST_NUMBER
+        mov edx, MSG_LEN_ENTER_FIRST_NUMBER
+        int 0x80
+        ; Read first number
+        push user_num_1_decimal_buffer
+        push user_num_1_ascii_buffer
+        call read_number
+
+        ; Output 'Enter second number: '
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_ENTER_SECOND_NUMBER
+        mov edx, MSG_LEN_ENTER_SECOND_NUMBER
+        int 0x80
+        ; Read second number
+        push user_num_2_decimal_buffer
+        push user_num_2_ascii_buffer
+        call read_number
+
+        ; Do addition
+        mov eax, [user_num_1_decimal_buffer]
+        mov ebx, [user_num_2_decimal_buffer]
+        add eax, ebx
+        mov [calculation_result_decimal_buffer], eax
+
+        ; Convert decimal result to ASCII
+        ; push calculation_result_ascii_buffer
+        ; push calculation_result_decimal_buffer
+        ; call convert_number_to_string
+
+        ; Output 'Result: '
+        ; mov eax, SYS_WRITE
+        ; mov ebx, STDOUT
+        ; mov ecx, MSG_CALCULATION_RESULT
+        ; mov edx, MSG_LEN_CALCULATION_RESULT
+        ; int 0x80
+
+        jmp start_user_selected_operation_finish
+        
+    start_operation_subtraction:
+        ;
+        jmp start_user_selected_operation_finish
+
+    start_operation_multiplication:
+        ;
+        jmp start_user_selected_operation_finish
+
+    start_operation_division:
+        ;
+        jmp start_user_selected_operation_finish
+
     start_user_selected_operation_finish:
         mov esp, ebp
         pop ebp
         ret
 
-start_operation_addition:
-    ;
-    jmp start_user_selected_operation_finish
-    
-start_operation_subtraction:
-    ;
-    jmp start_user_selected_operation_finish
-
-start_operation_multiplication:
-    ;
-    jmp start_user_selected_operation_finish
-
-start_operation_division:
-    ;
-    jmp start_user_selected_operation_finish
-
 convert_string_to_number:
+    ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
+    ; Arg_2 (ebp+12) - address to buffer that will hold decimal representation.
+    ; Push both memory addresses on to the stack before calling this function.
     push ebp
     mov ebp, esp
 
     xor ebx, ebx ; Clear ebx
-    mov esi, user_choice_ascii_buffer ; Load user choice string
+    mov esi, [ebp + 8] ; Load ASCII buffer (user's string input)
 
     convert_string_to_number_loop:
         movzx eax, byte [esi] ; Load next character from buffer
@@ -147,19 +278,20 @@ convert_string_to_number:
         jmp convert_string_to_number_loop
 
     convert_string_to_number_finish:
-        mov [converted_string], ebx ; Store value in buffer
+        mov edx, [ebp + 12] ; Loading the decimal buffer address into edx
+        mov [edx], ebx ; Storing converted value into decimal buffer
         mov esp, ebp
         pop ebp
         ret
 
-print_user_choice:
+print_select_operation:
     push ebp
     mov ebp, esp
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, user_choice_ascii_buffer
-    mov edx, USER_CHOICE_ASCII_BUFFER_LEN
+    mov ecx, MSG_SELECT_OPERATION
+    mov edx, MSG_LEN_SELECT_OPERATION
     int 0x80
 
     mov esp, ebp
@@ -170,6 +302,7 @@ print_startup_message:
     push ebp
     mov ebp, esp
 
+    ; Separator
     mov eax, SYS_WRITE
     mov ebx, STDOUT
     mov ecx, MSG_SEPARATOR
@@ -187,12 +320,6 @@ print_startup_message:
     mov ebx, STDOUT
     mov ecx, MSG_SEPARATOR
     mov edx, MSG_LEN_SEPARATOR
-    int 0x80
-
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_SELECT_OPERATION
-    mov edx, MSG_LEN_SELECT_OPERATION
     int 0x80
 
     mov eax, SYS_WRITE
