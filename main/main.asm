@@ -19,22 +19,26 @@ section .data
     MSG_LEN_OP_MULTIPLICATION equ $ - MSG_OP_MULTIPLICATION
     MSG_OP_DIVISION db "4. Division.", 0xa
     MSG_LEN_OP_DIVISION equ $ - MSG_OP_DIVISION
-    MSG_INVALID_CHOICE db "Invalid choice.", 0xa
+    MSG_INVALID_CHOICE db "Invalid choice. Try again:", 0xa
     MSG_LEN_INVALID_CHOICE equ $ - MSG_INVALID_CHOICE
-    USER_CHOICE_BUFFER_LEN equ 255
+    USER_CHOICE_ASCII_BUFFER_LEN equ 255
 
 section .bss
-    user_choice_buffer resb 255
+    user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
     converted_string resd 1
 
 section .text
     global _start
 
 _start:
-    call output_startup_message
+    call print_startup_message
+
     call read_user_choice
+
+    call start_user_selected_operation
     ; call print_user_choice
-    call convert_string_to_number
+    ; call start_operation
+    ; call convert_string_to_number
 
     mov eax, 1
     mov ebx, 0
@@ -48,13 +52,13 @@ read_user_choice:
         ; Read stdin buffer
         mov eax, SYS_READ
         mov ebx, STDIN
-        mov ecx, user_choice_buffer
-        mov edx, USER_CHOICE_BUFFER_LEN
+        mov ecx, user_choice_ascii_buffer
+        mov edx, USER_CHOICE_ASCII_BUFFER_LEN
         int 0x80
 
         ; Making sure all bytes in buffer are numbers
         xor edi, edi ; Zero out loop counter
-        mov esi, user_choice_buffer ; Load buffer
+        mov esi, user_choice_ascii_buffer ; Load buffer
 
         read_user_choice_loop:
             mov al, byte [esi + edi] ; Get first char in the buffer
@@ -62,9 +66,9 @@ read_user_choice:
             je read_user_choice_end
 
             ; Check if read byte represents a digit in hex
-            cmp al, "0"
+            cmp al, "1"
             jl read_user_choice_invalid_input
-            cmp al, "9"
+            cmp al, "4"
             jg read_user_choice_invalid_input
             
             inc edi
@@ -76,19 +80,59 @@ read_user_choice:
             mov ecx, MSG_INVALID_CHOICE
             mov edx, MSG_LEN_INVALID_CHOICE
             int 0x80
-            jmp read_user_choice_start
+            jmp read_user_choice_start ; Read input again if invalid
 
     read_user_choice_end:
+        ; Removing null terminator at the end of user choice (0xa)
+        mov eax, dword [user_choice_ascii_buffer]
+        xor ah, ah
+        mov [user_choice_ascii_buffer], eax
+        ; Function epilogue
         mov esp, ebp
         pop ebp
         ret
+
+start_user_selected_operation:
+    push ebp
+    mov ebp, esp
+
+    mov eax, dword [user_choice_ascii_buffer]
+    cmp eax, "1"
+    je start_operation_addition
+    cmp eax, "2"
+    je start_operation_subtraction
+    cmp eax, "3"
+    je start_operation_multiplication
+    cmp eax, "4"
+    je start_operation_division
+
+    start_user_selected_operation_finish:
+        mov esp, ebp
+        pop ebp
+        ret
+
+start_operation_addition:
+    ;
+    jmp start_user_selected_operation_finish
+    
+start_operation_subtraction:
+    ;
+    jmp start_user_selected_operation_finish
+
+start_operation_multiplication:
+    ;
+    jmp start_user_selected_operation_finish
+
+start_operation_division:
+    ;
+    jmp start_user_selected_operation_finish
 
 convert_string_to_number:
     push ebp
     mov ebp, esp
 
     xor ebx, ebx ; Clear ebx
-    mov esi, user_choice_buffer ; Load user choice string
+    mov esi, user_choice_ascii_buffer ; Load user choice string
 
     convert_string_to_number_loop:
         movzx eax, byte [esi] ; Load next character from buffer
@@ -114,15 +158,15 @@ print_user_choice:
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, user_choice_buffer
-    mov edx, USER_CHOICE_BUFFER_LEN
+    mov ecx, user_choice_ascii_buffer
+    mov edx, USER_CHOICE_ASCII_BUFFER_LEN
     int 0x80
 
     mov esp, ebp
     pop ebp
     ret
 
-output_startup_message:
+print_startup_message:
     push ebp
     mov ebp, esp
 
