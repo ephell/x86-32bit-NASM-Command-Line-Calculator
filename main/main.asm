@@ -272,6 +272,7 @@ start_user_selected_operation:
         mov ecx, MSG_ENTER_FIRST_NUMBER
         mov edx, MSG_LEN_ENTER_FIRST_NUMBER
         int 0x80
+
         ; Read first number
         push user_num_1_decimal_buffer
         push user_num_1_ascii_buffer
@@ -283,6 +284,7 @@ start_user_selected_operation:
         mov ecx, MSG_ENTER_SECOND_NUMBER
         mov edx, MSG_LEN_ENTER_SECOND_NUMBER
         int 0x80
+        
         ; Read second number
         push user_num_2_decimal_buffer
         push user_num_2_ascii_buffer
