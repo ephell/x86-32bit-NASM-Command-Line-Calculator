@@ -78,9 +78,8 @@ read_user_operation_choice:
         mov edx, USER_CHOICE_ASCII_BUFFER_LEN
         int 0x80
 
-        ; Making sure all bytes in buffer are numbers
-        xor edi, edi ; Zero out loop counter
         mov esi, user_choice_ascii_buffer ; Load buffer
+        xor edi, edi ; Clear edi register
 
         read_user_operation_choice_loop:
             mov al, byte [esi + edi] ; Get first char in the buffer
@@ -131,9 +130,8 @@ read_user_continue_choice:
         mov edx, USER_CHOICE_ASCII_BUFFER_LEN
         int 0x80
 
-        ; Making sure all bytes in buffer are numbers
-        xor edi, edi ; Zero out loop counter
         mov esi, user_choice_ascii_buffer ; Load buffer
+        xor edi, edi ; Clear edi register
 
         read_user_continue_choice_loop:
             mov al, byte [esi + edi] ; Get first char in the buffer
@@ -198,27 +196,35 @@ read_number:
         mov edx, USER_NUM_ASCII_BUFFER_LEN
         int 0x80
 
-        xor edi, edi ; Zero out loop counter
         mov esi, [ebp + 8] ; Load ASCII buffer
+        xor edi, edi ; Clear edi register
 
-        ; Check if user pressed enter without typing anything
-        mov al, byte [esi] ; Get the first char in the ASCII buffer
-        cmp al, 0xa ; Check if it's a new line character
+        ; Check for invalid input scenarios:
+        ; - User pressed Enter without typing anything
+        ; - User typed only a dash and pressed Enter
+        mov al, byte [esi]  ; Get the first character from the ASCII buffer
+        cmp al, 0xa ; Check if it's a new line character (Enter key)
         je read_number_invalid_input
-
-        read_number_loop:
+        cmp al, "-" ; Check if the first character is a dash
+        je read_number_check_second_character
+        jmp read_number_verify_all_chars_in_buffer_are_digits ; If there's no dash, jump into verifying loop
+        ; Prevents the user from entering a dash and immediately pressing Enter
+        read_number_check_second_character:
+            inc esi
+            cmp byte [esi], 0xa
+            je read_number_invalid_input
+            
+        read_number_verify_all_chars_in_buffer_are_digits:
             mov al, byte [esi + edi] ; Get first char in the ASCII buffer
             cmp al, 0xa ; Check if it's a new line character
             je read_number_convert_from_ascii_to_decimal
-
-            ; Check if the read byte represents a digit in hex
+            ; Check if the read byte is a digit
             cmp al, "0"
             jl read_number_invalid_input
             cmp al, "9"
             jg read_number_invalid_input
-            
             inc edi
-            jmp read_number_loop
+            jmp read_number_verify_all_chars_in_buffer_are_digits
 
         read_number_invalid_input:
             mov eax, SYS_WRITE
@@ -340,24 +346,36 @@ convert_string_to_number:
     push ebp
     mov ebp, esp
 
-    xor ebx, ebx ; Clear ebx
-    mov esi, [ebp + 8] ; Load ASCII buffer (user's string input)
+    mov esi, [ebp + 8] ; Load ASCII buffer address from the stack
+
+    ; Clear registers
+    xor ebx, ebx ; Clear ebx (used during conversion to store final number value)
+    xor ecx, ecx ; Clear ecx (used for storing a flag to indicate whether the number is negative or not)
+
+    ; Check if the string in ASCII buffer starts with a '-' (negative number)
+    movzx eax, byte [esi] ; Load first char from buffer
+    cmp al, "-" ; Check if the character is a dash
+    jne convert_string_to_number_loop ; Jump to the conversion loop if it's not a dash
+    inc esi ; If it's a dash, move the buffer pointer to the second character
+    mov ecx, 1 ; Set a flag to indicate whether the number is negative or not (1 if negative, 0 if positive)
 
     convert_string_to_number_loop:
         movzx eax, byte [esi] ; Load next character from buffer
         inc esi
-
         cmp al, 0x0a ; Check if loaded byte is a new line character
-        je convert_string_to_number_finish
-
+        je convert_string_to_number_save_converted_number
         sub al, '0'; Convert from ASCII to number
         imul ebx, 10 ; Multiply ebx by 10
         add ebx, eax ; ebx = ebx * 10 + eax
         jmp convert_string_to_number_loop
 
-    convert_string_to_number_finish:
+    convert_string_to_number_save_converted_number:
         mov edx, [ebp + 12] ; Loading the decimal buffer address into edx
-        mov [edx], ebx ; Storing converted value into decimal buffer
+        test ecx, ecx; Check the number flag that was set at the start
+        jz convert_string_to_number_store_value_into_buffer ; If zero (positive)
+        neg ebx ; Negate the final number (if flag is non zero)
+        convert_string_to_number_store_value_into_buffer:
+            mov [edx], ebx
         
     mov esp, ebp
     pop ebp
@@ -394,7 +412,7 @@ convert_number_to_string:
         jne convert_number_to_string_push_to_stack
 
     ; Pop characters from the stack into buffer that will contain converted number
-    xor edi, edi ; Zero out edi
+    xor edi, edi ; Clear edi register
     convert_number_to_string_pop_from_stack:
         mov ebx, [ebp + 12] ; Load the address of the buffer
         pop dword [ebx + edi] ; Pop character from stack
