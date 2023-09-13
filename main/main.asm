@@ -30,8 +30,8 @@ section .data
     MSG_CALCULATION_RESULT db "Result: "
     MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
-    USER_NUM_ASCII_BUFFER_LEN equ 11 ; 10 + 1 for null terminator
-    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 11 ; 10 + 1 for null terminator
+    USER_NUM_ASCII_BUFFER_LEN equ 12 ; 10 + 2 for null terminator and new line feed
+    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 12 ; 10 + 2 for null terminator and new line feed
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
@@ -225,16 +225,28 @@ start_user_selected_operation:
         mov [calculation_result_decimal_buffer], eax
 
         ; Convert decimal result to ASCII
-        ; push calculation_result_ascii_buffer
-        ; push calculation_result_decimal_buffer
-        ; call convert_number_to_string
+        push calculation_result_ascii_buffer
+        push calculation_result_decimal_buffer
+        call convert_number_to_string
 
-        ; Output 'Result: '
-        ; mov eax, SYS_WRITE
-        ; mov ebx, STDOUT
-        ; mov ecx, MSG_CALCULATION_RESULT
-        ; mov edx, MSG_LEN_CALCULATION_RESULT
-        ; int 0x80
+        ; Output 'Result: (string in result buffer)'
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_CALCULATION_RESULT
+        mov edx, MSG_LEN_CALCULATION_RESULT
+        int 0x80
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, calculation_result_ascii_buffer
+        mov edx, CALCULATION_RESULT_ASCII_BUFFER_LEN
+        int 0x80
+
+        ; Separator
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_SEPARATOR
+        mov edx, MSG_LEN_SEPARATOR
+        int 0x80
 
         jmp start_user_selected_operation_finish
         
@@ -280,9 +292,42 @@ convert_string_to_number:
     convert_string_to_number_finish:
         mov edx, [ebp + 12] ; Loading the decimal buffer address into edx
         mov [edx], ebx ; Storing converted value into decimal buffer
-        mov esp, ebp
-        pop ebp
-        ret
+        
+    mov esp, ebp
+    pop ebp
+    ret
+
+convert_number_to_string:
+    push ebp
+    mov ebp, esp
+
+    mov ebx, [ebp + 8] ; Load decimal buffer
+    mov eax, [ebx] ; Load the literal value in the buffer into eax
+    xor edi, edi
+
+    ; Convert from decimal to ASCII and push converted characters onto the stack.
+    convert_number_to_string_push_to_stack:
+        mov edx, 0 ; Fill higher order bits
+        mov ecx, 10 ; Divisor
+        div ecx
+        add edx, "0" ; Convert the remainder to ASCII
+        push edx ; Push the converted character onto the stack
+        test eax, eax ; If quotient is not 0, keep converting
+        jne convert_number_to_string_push_to_stack
+
+    ; Pop characters from the stack into 'calculation_result_ascii_buffer'.
+    convert_number_to_string_pop_from_stack:
+        pop dword [calculation_result_ascii_buffer + edi]
+        inc edi
+        cmp esp, ebp ; If pointing to the same address then there are no more chars
+        jne convert_number_to_string_pop_from_stack
+        ; Add null terminator and new line feed
+        mov byte [calculation_result_ascii_buffer + edi], 0
+        mov byte [calculation_result_ascii_buffer + edi + 1], 0xa
+
+    mov esp, ebp
+    pop ebp
+    ret
 
 print_select_operation:
     push ebp
