@@ -186,15 +186,14 @@ clear_user_choice_ascii_buffer:
     push ebp
     mov ebp, esp
 
-    mov esi, user_choice_ascii_buffer  ; Load the address of the buffer from the function parameter
-    mov ecx, USER_CHOICE_ASCII_BUFFER_LEN ; Load the length of the buffer from the function parameter
+    mov esi, user_choice_ascii_buffer ; Load the buffer to clear
+    mov ecx, USER_CHOICE_ASCII_BUFFER_LEN ; Load the length of the buffer
+    xor eax, eax ; Set eax to 0 (the value to clear the buffer with)
 
-    xor eax, eax        ; Set eax to 0 (the value to clear the buffer with)
-
-    clear_loop:
-        mov [esi], al   ; Set the current byte in the buffer to 0
-        inc esi         ; Move to the next byte
-        loop clear_loop ; Continue until ecx reaches 0
+    clear_user_choice_ascii_buffer_loop:
+        mov [esi], al ; Set the current byte in the buffer to 0
+        inc esi ; Move to the next byte
+        loop clear_user_choice_ascii_buffer_loop ; Continue until ecx reaches 0
 
     mov esp, ebp
     pop ebp
@@ -347,7 +346,7 @@ start_user_selected_operation:
 
 convert_string_to_number:
     ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
-    ; Arg_2 (ebp+12) - address to buffer that will hold decimal representation.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in decimal.
     ; Push both memory addresses on to the stack before calling this function.
     push ebp
     mov ebp, esp
@@ -376,10 +375,13 @@ convert_string_to_number:
     ret
 
 convert_number_to_string:
+    ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in decimal.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in ASCII.
+    ; Push both memory addresses on to the stack before calling this function.
     push ebp
     mov ebp, esp
 
-    mov ebx, [ebp + 8] ; Load decimal buffer
+    mov ebx, [ebp + 8] ; Load decimal buffer containing number to be converted
     mov eax, [ebx] ; Load the literal value in the buffer into eax
     xor edi, edi
 
@@ -393,42 +395,36 @@ convert_number_to_string:
         test eax, eax ; If quotient is not 0, keep converting
         jne convert_number_to_string_push_to_stack
 
-    ; Pop characters from the stack into 'calculation_result_ascii_buffer'.
+    ; Pop characters from the stack into buffer that will contain converted number
     convert_number_to_string_pop_from_stack:
-        pop dword [calculation_result_ascii_buffer + edi]
+        mov ebx, [ebp + 12] ; Load the address of the buffer
+        pop dword [ebx + edi]
         inc edi
         cmp esp, ebp ; If pointing to the same address then there are no more chars
         jne convert_number_to_string_pop_from_stack
         ; Add null terminator and new line feed
-        mov byte [calculation_result_ascii_buffer + edi], 0
-        mov byte [calculation_result_ascii_buffer + edi + 1], 0xa
+        mov byte [ebx + edi], 0
+        mov byte [ebx + edi + 1], 0xa
 
     mov esp, ebp
     pop ebp
     ret
 
-print_select_operation:
+print_title:
     push ebp
     mov ebp, esp
 
+    ; Separator
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, MSG_SELECT_OPERATION
-    mov edx, MSG_LEN_SELECT_OPERATION
+    mov ecx, MSG_SEPARATOR
+    mov edx, MSG_LEN_SEPARATOR
     int 0x80
 
-    mov esp, ebp
-    pop ebp
-    ret
-
-print_ask_if_user_wants_to_continue:
-    push ebp
-    mov ebp, esp
-
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, MSG_PERFORM_ANOTHER_OPERATION
-    mov edx, MSG_LEN_PERFORM_ANOTHER_OPERATION
+    mov ecx, MSG_TITLE
+    mov edx, MSG_LEN_TITLE
     int 0x80
 
     mov esp, ebp
@@ -481,21 +477,28 @@ print_operation_options:
     pop ebp
     ret
 
-print_title:
+print_select_operation:
     push ebp
     mov ebp, esp
 
-    ; Separator
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, MSG_SEPARATOR
-    mov edx, MSG_LEN_SEPARATOR
+    mov ecx, MSG_SELECT_OPERATION
+    mov edx, MSG_LEN_SELECT_OPERATION
     int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print_ask_if_user_wants_to_continue:
+    push ebp
+    mov ebp, esp
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, MSG_TITLE
-    mov edx, MSG_LEN_TITLE
+    mov ecx, MSG_PERFORM_ANOTHER_OPERATION
+    mov edx, MSG_LEN_PERFORM_ANOTHER_OPERATION
     int 0x80
 
     mov esp, ebp
