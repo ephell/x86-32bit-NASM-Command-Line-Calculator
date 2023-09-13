@@ -5,9 +5,9 @@ STDIN equ 0
 STDOUT equ 1
 
 section .data
-    MSG_STARTUP db "------------x86 ASM Calculator------------", 0xa
-    MSG_LEN_STARTUP equ $ - MSG_STARTUP
-    MSG_SEPARATOR db "------------------------------------------", 0xa
+    MSG_TITLE db "-------------------x86 ASM Calculator-------------------", 0xa
+    MSG_LEN_TITLE equ $ - MSG_TITLE
+    MSG_SEPARATOR db "--------------------------------------------------------", 0xa
     MSG_LEN_SEPARATOR equ $ - MSG_SEPARATOR
     MSG_SELECT_OPERATION db "Select operation: "
     MSG_LEN_SELECT_OPERATION equ $ - MSG_SELECT_OPERATION
@@ -29,6 +29,8 @@ section .data
     MSG_LEN_INVALID_INPUT equ $ - MSG_INVALID_INPUT
     MSG_CALCULATION_RESULT db "Result: "
     MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
+    MSG_PERFORM_ANOTHER_OPERATION db "Would you like to perform another operation? (y/n): "
+    MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
     USER_NUM_ASCII_BUFFER_LEN equ 12 ; 10 + 2 for null terminator and new line feed
     CALCULATION_RESULT_ASCII_BUFFER_LEN equ 12 ; 10 + 2 for null terminator and new line feed
@@ -46,23 +48,28 @@ section .text
     global _start
 
 _start:
-    call print_startup_message
+    call print_title
 
-    _start_loop:
+    _start_main_loop:
+        call print_operation_options
         call print_select_operation
-        call read_user_choice
+        call read_user_operation_choice
         call start_user_selected_operation
-        jmp _start_loop
+        call print_ask_if_user_wants_to_continue
+        call read_user_continue_choice
+        cmp eax, 1 ; eax stores user's choice (1 - yes, 0 - no)
+        je _start_main_loop
 
     mov eax, 1
     mov ebx, 0
     int 0x80
 
-read_user_choice:
+read_user_operation_choice:
+    ; Reads what operation user selects (addition, subtraction etc.).
     push ebp
     mov ebp, esp
 
-    read_user_choice_start:
+    read_user_operation_choice_start:
         ; Clear the buffer from previous inputs
         call clear_user_choice_ascii_buffer
 
@@ -77,36 +84,100 @@ read_user_choice:
         xor edi, edi ; Zero out loop counter
         mov esi, user_choice_ascii_buffer ; Load buffer
 
-        read_user_choice_loop:
+        read_user_operation_choice_loop:
             mov al, byte [esi + edi] ; Get first char in the buffer
             cmp al, 0xa ; Check if it's a new line character
-            je read_user_choice_end
+            je read_user_operation_choice_end
 
             ; Check if read byte represents a digit in hex
             cmp al, "1"
-            jl read_user_choice_invalid_input
+            jl read_user_operation_choice_invalid_input
             cmp al, "4"
-            jg read_user_choice_invalid_input
+            jg read_user_operation_choice_invalid_input
             
             inc edi
             cmp edi, 2
-            je read_user_choice_invalid_input
-            jmp read_user_choice_loop
+            je read_user_operation_choice_invalid_input
+            jmp read_user_operation_choice_loop
 
-        read_user_choice_invalid_input:
+        read_user_operation_choice_invalid_input:
             mov eax, SYS_WRITE
             mov ebx, STDOUT
             mov ecx, MSG_INVALID_CHOICE
             mov edx, MSG_LEN_INVALID_CHOICE
             int 0x80
-            jmp read_user_choice_start ; Read input again if invalid
+            jmp read_user_operation_choice_start ; Read input again if invalid
 
-    read_user_choice_end:
-        ; Removing null terminator at the end of user choice (0xa)
-        mov eax, dword [user_choice_ascii_buffer]
-        xor ah, ah
-        mov [user_choice_ascii_buffer], eax
-        ; Function epilogue
+        read_user_operation_choice_end:
+            ; Removing null terminator at the end of user choice (0xa)
+            mov eax, dword [user_choice_ascii_buffer]
+            xor ah, ah
+            mov [user_choice_ascii_buffer], eax
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+read_user_continue_choice:
+    ; Reads if user wants to continue after an operation (calculation) was done.
+    push ebp
+    mov ebp, esp
+
+    read_user_continue_choice_start:
+        ; Clear the buffer from previous inputs
+        call clear_user_choice_ascii_buffer
+
+        ; Read stdin buffer
+        mov eax, SYS_READ
+        mov ebx, STDIN
+        mov ecx, user_choice_ascii_buffer
+        mov edx, USER_CHOICE_ASCII_BUFFER_LEN
+        int 0x80
+
+        ; Making sure all bytes in buffer are numbers
+        xor edi, edi ; Zero out loop counter
+        mov esi, user_choice_ascii_buffer ; Load buffer
+
+        read_user_continue_choice_loop:
+            mov al, byte [esi + edi] ; Get first char in the buffer
+            cmp al, 0xa ; Check if it's a new line character
+            je read_user_continue_choice_invalid_input
+
+            ; Check for a valid option
+            cmp al, "y"
+            je read_user_continue_choice_y_selected
+            cmp al, "Y"
+            je read_user_continue_choice_y_selected
+            cmp al, "n"
+            je read_user_continue_choice_n_selected
+            cmp al, "N"
+            je read_user_continue_choice_n_selected
+            
+            ; If input is larger than 2 bytes, consider it invalid (choice + null terminator)
+            inc edi
+            cmp edi, 1
+            je read_user_continue_choice_invalid_input
+            jmp read_user_continue_choice_loop
+
+        read_user_continue_choice_invalid_input:
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_INVALID_CHOICE
+            mov edx, MSG_LEN_INVALID_CHOICE
+            int 0x80
+            jmp read_user_continue_choice_start ; Read input again if invalid
+
+        read_user_continue_choice_y_selected:
+            xor eax, eax
+            mov eax, 1
+            jmp read_user_continue_choice_end
+
+        read_user_continue_choice_n_selected:
+            xor eax, eax
+            mov eax, 0
+            jmp read_user_continue_choice_end
+
+    read_user_continue_choice_end:
         mov esp, ebp
         pop ebp
         ret
@@ -184,6 +255,13 @@ read_number:
 start_user_selected_operation:
     push ebp
     mov ebp, esp
+
+    ; Separator
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_SEPARATOR
+    mov edx, MSG_LEN_SEPARATOR
+    int 0x80
 
     mov eax, dword [user_choice_ascii_buffer]
     cmp eax, "1"
@@ -343,22 +421,23 @@ print_select_operation:
     pop ebp
     ret
 
-print_startup_message:
+print_ask_if_user_wants_to_continue:
     push ebp
     mov ebp, esp
 
-    ; Separator
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, MSG_SEPARATOR
-    mov edx, MSG_LEN_SEPARATOR
+    mov ecx, MSG_PERFORM_ANOTHER_OPERATION
+    mov edx, MSG_LEN_PERFORM_ANOTHER_OPERATION
     int 0x80
 
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_STARTUP
-    mov edx, MSG_LEN_STARTUP
-    int 0x80
+    mov esp, ebp
+    pop ebp
+    ret
+
+print_operation_options:
+    push ebp
+    mov ebp, esp
 
     ; Separator
     mov eax, SYS_WRITE
@@ -396,6 +475,27 @@ print_startup_message:
     mov ebx, STDOUT
     mov ecx, MSG_SEPARATOR
     mov edx, MSG_LEN_SEPARATOR
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print_title:
+    push ebp
+    mov ebp, esp
+
+    ; Separator
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_SEPARATOR
+    mov edx, MSG_LEN_SEPARATOR
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_TITLE
+    mov edx, MSG_LEN_TITLE
     int 0x80
 
     mov esp, ebp
