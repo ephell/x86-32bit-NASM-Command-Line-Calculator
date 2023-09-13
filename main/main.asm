@@ -172,7 +172,6 @@ read_user_continue_choice:
         read_user_continue_choice_n_selected:
             xor eax, eax
             mov eax, 0
-            jmp read_user_continue_choice_end
 
     read_user_continue_choice_end:
         mov esp, ebp
@@ -241,12 +240,10 @@ read_number:
             push dword [ebp + 12] ; Pushing the decimal buffer
             push dword [ebp + 8] ; Pushing the ASCII buffer
             call convert_string_to_number
-            jmp read_number_end
 
-    read_number_end:
-        mov esp, ebp
-        pop ebp
-        ret
+    mov esp, ebp
+    pop ebp
+    ret
 
 start_user_selected_operation:
     push ebp
@@ -334,7 +331,6 @@ start_user_selected_operation:
 
     start_operation_division:
         ;
-        jmp start_user_selected_operation_finish
 
     start_user_selected_operation_finish:
         mov esp, ebp
