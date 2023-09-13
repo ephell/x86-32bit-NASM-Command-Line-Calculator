@@ -32,17 +32,18 @@ section .data
     MSG_PERFORM_ANOTHER_OPERATION db "Would you like to perform another operation? (y/n): "
     MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
-    USER_NUM_ASCII_BUFFER_LEN equ 12 ; 10 + 2 for null terminator and new line feed
-    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 12 ; 10 + 2 for null terminator and new line feed
+    USER_NUM_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
+    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
+    DECIMAL_BUFFER_LEN equ 4
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
     user_num_1_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_1_decimal_buffer resd 1 ; For storage after conversion from ASCII
+    user_num_1_decimal_buffer resd DECIMAL_BUFFER_LEN ; For storage after conversion from ASCII
     user_num_2_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_2_decimal_buffer resd 1 ; For storage after conversion from ASCII
+    user_num_2_decimal_buffer resd DECIMAL_BUFFER_LEN ; For storage after conversion from ASCII
     calculation_result_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
-    calculation_result_decimal_buffer resd 1
+    calculation_result_decimal_buffer resd DECIMAL_BUFFER_LEN
 
 section .text
     global _start
@@ -70,9 +71,6 @@ read_user_operation_choice:
     mov ebp, esp
 
     read_user_operation_choice_start:
-        ; Clear the buffer from previous inputs
-        call clear_user_choice_ascii_buffer
-
         ; Read stdin buffer
         mov eax, SYS_READ
         mov ebx, STDIN
@@ -104,7 +102,12 @@ read_user_operation_choice:
             mov ecx, MSG_INVALID_CHOICE
             mov edx, MSG_LEN_INVALID_CHOICE
             int 0x80
-            jmp read_user_operation_choice_start ; Read input again if invalid
+            ; Clear buffer before reading input again
+            push USER_CHOICE_ASCII_BUFFER_LEN
+            push user_choice_ascii_buffer
+            call clear_buffer
+            add esp, 8
+            jmp read_user_operation_choice_start
 
         read_user_operation_choice_remove_null_terminator:
             mov eax, dword [user_choice_ascii_buffer]
@@ -121,9 +124,6 @@ read_user_continue_choice:
     mov ebp, esp
 
     read_user_continue_choice_start:
-        ; Clear the buffer from previous inputs
-        call clear_user_choice_ascii_buffer
-
         ; Read stdin buffer
         mov eax, SYS_READ
         mov ebx, STDIN
@@ -162,7 +162,12 @@ read_user_continue_choice:
             mov ecx, MSG_INVALID_CHOICE
             mov edx, MSG_LEN_INVALID_CHOICE
             int 0x80
-            jmp read_user_continue_choice_start ; Read input again if invalid
+            ; Clear buffer before reading input again
+            push USER_CHOICE_ASCII_BUFFER_LEN
+            push user_choice_ascii_buffer
+            call clear_buffer
+            add esp, 8
+            jmp read_user_continue_choice_start
 
         read_user_continue_choice_y_selected:
             xor eax, eax
@@ -177,23 +182,6 @@ read_user_continue_choice:
         mov esp, ebp
         pop ebp
         ret
-
-clear_user_choice_ascii_buffer:
-    push ebp
-    mov ebp, esp
-
-    mov esi, user_choice_ascii_buffer ; Load the buffer to clear
-    mov ecx, USER_CHOICE_ASCII_BUFFER_LEN ; Load the length of the buffer
-    xor eax, eax ; Set eax to 0 (the value to clear the buffer with)
-
-    clear_user_choice_ascii_buffer_loop:
-        mov [esi], al ; Set the current byte in the buffer to 0
-        inc esi ; Move to the next byte
-        loop clear_user_choice_ascii_buffer_loop ; Continue until ecx reaches 0
-
-    mov esp, ebp
-    pop ebp
-    ret
 
 read_number:
     ; Read user input from STDIN, convert string to decimal and store in buffer.
@@ -212,6 +200,11 @@ read_number:
 
         xor edi, edi ; Zero out loop counter
         mov esi, [ebp + 8] ; Load ASCII buffer
+
+        ; Check if user pressed enter without typing anything
+        mov al, byte [esi] ; Get the first char in the ASCII buffer
+        cmp al, 0xa ; Check if it's a new line character
+        je read_number_invalid_input
 
         read_number_loop:
             mov al, byte [esi + edi] ; Get first char in the ASCII buffer
@@ -335,6 +328,8 @@ start_user_selected_operation:
         mov edx, MSG_LEN_SEPARATOR
         int 0x80
 
+    call clear_all_buffers
+
     mov esp, ebp
     pop ebp
     ret
@@ -376,8 +371,18 @@ convert_number_to_string:
 
     mov ebx, [ebp + 8] ; Load decimal buffer containing number to be converted
     mov eax, [ebx] ; Load the literal value in the buffer into eax
-    xor edi, edi
 
+    convert_number_to_string_check_if_number_is_negative:
+        cmp eax, 0
+        jge convert_number_to_string_push_to_stack ; Jump if value is non-negative
+
+        ; If the value in buffer is negative
+        neg eax ; Convert the value to positive
+        mov ebx, [ebp + 12] ; Load the starting address of the ASCII buffer
+        mov [ebx], byte "-" ; Add '-' to the first element of the buffer
+        inc ebx ; Increment buffer pointer so it points to the second element (an empty space)
+        mov [ebp + 12], ebx ; Overwrite the old buffer starting address with the new one
+    
     ; Convert from decimal to ASCII and push converted characters onto the stack.
     convert_number_to_string_push_to_stack:
         mov edx, 0 ; Fill higher order bits
@@ -389,15 +394,69 @@ convert_number_to_string:
         jne convert_number_to_string_push_to_stack
 
     ; Pop characters from the stack into buffer that will contain converted number
+    xor edi, edi ; Zero out edi
     convert_number_to_string_pop_from_stack:
         mov ebx, [ebp + 12] ; Load the address of the buffer
-        pop dword [ebx + edi]
+        pop dword [ebx + edi] ; Pop character from stack
         inc edi
         cmp esp, ebp ; If pointing to the same address then there are no more chars
         jne convert_number_to_string_pop_from_stack
         ; Add null terminator and new line feed
         mov byte [ebx + edi], 0
         mov byte [ebx + edi + 1], 0xa
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+clear_buffer:
+    ; Set all bytes to 0 in buffer.
+    ; Arg_1 (ebp+8) - address of the buffer to clear.
+    ; Arg_2 (ebp+12) - length of the buffer.
+    push ebp
+    mov ebp, esp
+
+    mov esi, [ebp + 8] ; Load the buffer to clear
+    mov ecx, [ebp + 12] ; Load the length of the buffer
+    xor eax, eax ; Set eax to 0 (the value to clear the buffer with)
+
+    clear_buffer_loop:
+        mov [esi], al ; Set the current byte in the buffer to 0
+        inc esi ; Move to the next byte
+        loop clear_buffer_loop ; Continue until ecx reaches 0
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+clear_all_buffers:
+    push ebp
+    mov ebp, esp
+
+    ; Clear all ASCII buffers
+    push USER_CHOICE_ASCII_BUFFER_LEN
+    push user_choice_ascii_buffer
+    call clear_buffer
+    push USER_NUM_ASCII_BUFFER_LEN 
+    push user_num_1_ascii_buffer
+    call clear_buffer
+    push USER_NUM_ASCII_BUFFER_LEN 
+    push user_num_2_ascii_buffer
+    call clear_buffer
+    push CALCULATION_RESULT_ASCII_BUFFER_LEN 
+    push calculation_result_ascii_buffer
+    call clear_buffer
+
+    ; Clear all decimal buffers
+    push DECIMAL_BUFFER_LEN
+    push user_num_1_decimal_buffer
+    call clear_buffer
+    push DECIMAL_BUFFER_LEN 
+    push user_num_2_decimal_buffer
+    call clear_buffer
+    push DECIMAL_BUFFER_LEN 
+    push calculation_result_decimal_buffer
+    call clear_buffer
 
     mov esp, ebp
     pop ebp
