@@ -87,18 +87,16 @@ read_user_operation_choice:
         read_user_operation_choice_loop:
             mov al, byte [esi + edi] ; Get first char in the buffer
             cmp al, 0xa ; Check if it's a new line character
-            je read_user_operation_choice_end
+            je read_user_operation_choice_invalid_input
 
-            ; Check if read byte represents a digit in hex
+            ; Check if read byte is a digit (and a valid option)
             cmp al, "1"
             jl read_user_operation_choice_invalid_input
             cmp al, "4"
             jg read_user_operation_choice_invalid_input
             
-            inc edi
-            cmp edi, 2
-            je read_user_operation_choice_invalid_input
-            jmp read_user_operation_choice_loop
+            ; Jump if input is valid (1-4)
+            jmp read_user_operation_choice_remove_null_terminator
 
         read_user_operation_choice_invalid_input:
             mov eax, SYS_WRITE
@@ -108,8 +106,7 @@ read_user_operation_choice:
             int 0x80
             jmp read_user_operation_choice_start ; Read input again if invalid
 
-        read_user_operation_choice_end:
-            ; Removing null terminator at the end of user choice (0xa)
+        read_user_operation_choice_remove_null_terminator:
             mov eax, dword [user_choice_ascii_buffer]
             xor ah, ah
             mov [user_choice_ascii_buffer], eax
