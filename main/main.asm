@@ -199,7 +199,6 @@ read_number:
     ; Read user input from STDIN, convert string to decimal and store in buffer.
     ; Arg_1 (ebp+8) - address to buffer that user's input from STDIN (ASCII).
     ; Arg_2 (ebp+12) - address to buffer that will hold decimal representation.
-    ; Push both memory addresses on to the stack before calling this function.
     push ebp
     mov ebp, esp
 
@@ -220,7 +219,7 @@ read_number:
             je read_number_convert_from_ascii_to_decimal
 
             ; Check if the read byte represents a digit in hex
-            cmp al, "1"
+            cmp al, "0"
             jl read_number_invalid_input
             cmp al, "9"
             jg read_number_invalid_input
@@ -340,7 +339,6 @@ start_user_selected_operation:
 convert_string_to_number:
     ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
     ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in decimal.
-    ; Push both memory addresses on to the stack before calling this function.
     push ebp
     mov ebp, esp
 
@@ -370,7 +368,6 @@ convert_string_to_number:
 convert_number_to_string:
     ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in decimal.
     ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in ASCII.
-    ; Push both memory addresses on to the stack before calling this function.
     push ebp
     mov ebp, esp
 
