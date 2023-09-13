@@ -255,6 +255,31 @@ start_user_selected_operation:
     mov edx, MSG_LEN_SEPARATOR
     int 0x80
 
+    ; Output 'Enter first number: '
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_ENTER_FIRST_NUMBER
+    mov edx, MSG_LEN_ENTER_FIRST_NUMBER
+    int 0x80
+
+    ; Read first number
+    push user_num_1_decimal_buffer
+    push user_num_1_ascii_buffer
+    call read_number
+
+    ; Output 'Enter second number: '
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_ENTER_SECOND_NUMBER
+    mov edx, MSG_LEN_ENTER_SECOND_NUMBER
+    int 0x80
+    
+    ; Read second number
+    push user_num_2_decimal_buffer
+    push user_num_2_ascii_buffer
+    call read_number
+
+    ; Perform operation based on user's choice
     mov eax, dword [user_choice_ascii_buffer]
     cmp eax, "1"
     je start_operation_addition
@@ -266,36 +291,26 @@ start_user_selected_operation:
     je start_operation_division
 
     start_operation_addition:
-        ; Output 'Enter first number: '
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_ENTER_FIRST_NUMBER
-        mov edx, MSG_LEN_ENTER_FIRST_NUMBER
-        int 0x80
-
-        ; Read first number
-        push user_num_1_decimal_buffer
-        push user_num_1_ascii_buffer
-        call read_number
-
-        ; Output 'Enter second number: '
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_ENTER_SECOND_NUMBER
-        mov edx, MSG_LEN_ENTER_SECOND_NUMBER
-        int 0x80
-        
-        ; Read second number
-        push user_num_2_decimal_buffer
-        push user_num_2_ascii_buffer
-        call read_number
-
-        ; Do addition
         mov eax, [user_num_1_decimal_buffer]
         mov ebx, [user_num_2_decimal_buffer]
         add eax, ebx
         mov [calculation_result_decimal_buffer], eax
+        jmp start_user_selected_operation_finish
+   
+    start_operation_subtraction:
+        mov eax, [user_num_1_decimal_buffer]
+        mov ebx, [user_num_2_decimal_buffer]
+        sub eax, ebx
+        mov [calculation_result_decimal_buffer], eax
+        jmp start_user_selected_operation_finish
 
+    start_operation_multiplication:
+        jmp start_user_selected_operation_finish
+
+    start_operation_division:
+        jmp start_user_selected_operation_finish
+
+    start_user_selected_operation_finish:
         ; Convert decimal result to ASCII
         push calculation_result_ascii_buffer
         push calculation_result_decimal_buffer
@@ -320,23 +335,9 @@ start_user_selected_operation:
         mov edx, MSG_LEN_SEPARATOR
         int 0x80
 
-        jmp start_user_selected_operation_finish
-        
-    start_operation_subtraction:
-        ;
-        jmp start_user_selected_operation_finish
-
-    start_operation_multiplication:
-        ;
-        jmp start_user_selected_operation_finish
-
-    start_operation_division:
-        ;
-
-    start_user_selected_operation_finish:
-        mov esp, ebp
-        pop ebp
-        ret
+    mov esp, ebp
+    pop ebp
+    ret
 
 convert_string_to_number:
     ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
