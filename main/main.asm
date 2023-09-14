@@ -116,66 +116,67 @@ read_user_operation_choice:
         ret
 
 read_user_continue_choice:
-    ; Read if user wants to continue after an operation (calculation) was done.
+    ; Read if user wants to continue after an operation was done.
+    ; Stores the choice in eax register (1 - yes, 0 - no).
     push ebp
     mov ebp, esp
 
-    read_user_continue_choice___start:
+    mov esi, user_choice_ascii_buffer ; Load buffer address
+
+    read_user_continue_choice___read_input:
         ; Read stdin buffer
         mov eax, SYS_READ
         mov ebx, STDIN
-        mov ecx, user_choice_ascii_buffer
+        mov ecx, esi
         mov edx, USER_CHOICE_ASCII_BUFFER_LEN
         int 0x80
 
-        mov esi, user_choice_ascii_buffer ; Load buffer
-        xor edi, edi ; Clear edi register
+    read_user_continue_choice___validate_input:
+        xor edi, edi
+        push esi
+        call count_string_length
+        ; Reject input if it is empty (only a newline character)
+        cmp edi, 1 
+        je read_user_continue_choice___reject_input
+        ; Reject input if it is longer than 2 characters (only 1 character + null terminator allowed)
+        cmp edi, 2
+        jg read_user_continue_choice___reject_input        
+        ; Reject input if the first character in the buffer is not 'y', 'Y', 'n' or 'N'
+        mov al, byte [esi]
+        cmp al, "y"
+        je read_user_continue_choice___y_selected
+        cmp al, "Y"
+        je read_user_continue_choice___y_selected
+        cmp al, "n"
+        je read_user_continue_choice___n_selected
+        cmp al, "N"
+        je read_user_continue_choice___n_selected
+        ; If neither of the characters match
+        jmp read_user_continue_choice___reject_input
 
-        read_user_continue_choice___loop:
-            mov al, byte [esi + edi] ; Get first char in the buffer
-            cmp al, 0xa ; Check if it's a new line character
-            je read_user_continue_choice___invalid_input
+    read_user_continue_choice___y_selected:
+        xor eax, eax
+        mov eax, 1
+        jmp read_user_continue_choice___return
 
-            ; Check for a valid option
-            cmp al, "y"
-            je read_user_continue_choice___y_selected
-            cmp al, "Y"
-            je read_user_continue_choice___y_selected
-            cmp al, "n"
-            je read_user_continue_choice___n_selected
-            cmp al, "N"
-            je read_user_continue_choice___n_selected
-            
-            ; If input is larger than 2 bytes, consider it invalid
-            ; Has to be a valid option + null terminator
-            inc edi
-            cmp edi, 1
-            je read_user_continue_choice___invalid_input
-            jmp read_user_continue_choice___loop
+    read_user_continue_choice___n_selected:
+        xor eax, eax
+        mov eax, 0
+        jmp read_user_continue_choice___return
 
-        read_user_continue_choice___invalid_input:
-            mov eax, SYS_WRITE
-            mov ebx, STDOUT
-            mov ecx, MSG_INVALID_CHOICE
-            mov edx, MSG_LEN_INVALID_CHOICE
-            int 0x80
-            ; Clear buffer before reading input again
-            push USER_CHOICE_ASCII_BUFFER_LEN
-            push user_choice_ascii_buffer
-            call clear_buffer
-            add esp, 8
-            jmp read_user_continue_choice___start
+    read_user_continue_choice___reject_input:
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_INVALID_CHOICE
+        mov edx, MSG_LEN_INVALID_CHOICE
+        int 0x80
+        ; Clear buffer before reading input again
+        push USER_CHOICE_ASCII_BUFFER_LEN
+        push user_choice_ascii_buffer
+        call clear_buffer
+        jmp read_user_continue_choice___read_input
 
-        read_user_continue_choice___y_selected:
-            xor eax, eax
-            mov eax, 1
-            jmp read_user_continue_choice___go_to_epilogue
-
-        read_user_continue_choice___n_selected:
-            xor eax, eax
-            mov eax, 0
-
-    read_user_continue_choice___go_to_epilogue:
+    read_user_continue_choice___return:
         mov esp, ebp
         pop ebp
         ret
