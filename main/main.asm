@@ -34,16 +34,16 @@ section .data
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
     USER_NUM_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
     CALCULATION_RESULT_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
-    DECIMAL_BUFFER_LEN equ 4
+    NUMBER_BUFFER_LEN equ 4
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
     user_num_1_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_1_decimal_buffer resd DECIMAL_BUFFER_LEN ; For storage after conversion from ASCII
+    user_num_1_number_buffer resd NUMBER_BUFFER_LEN ; For storage after conversion from ASCII
     user_num_2_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_2_decimal_buffer resd DECIMAL_BUFFER_LEN ; For storage after conversion from ASCII
+    user_num_2_number_buffer resd NUMBER_BUFFER_LEN ; For storage after conversion from ASCII
     calculation_result_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
-    calculation_result_decimal_buffer resd DECIMAL_BUFFER_LEN
+    calculation_result_number_buffer resd NUMBER_BUFFER_LEN
 
 section .text
     global _start
@@ -182,9 +182,9 @@ read_user_continue_choice:
         ret
 
 read_number:
-    ; Read user input from stdin, convert string to decimal and store in buffer.
-    ; Arg_1 (ebp+8) - address to buffer that stores users' input from stdin (ASCII).
-    ; Arg_2 (ebp+12) - address to buffer that will hold decimal representation.
+    ; Read user input from stdin, convert string to number and store in buffer.
+    ; Arg_1 (ebp+8) - address to buffer that holds users' input in ASCII.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the number.
     push ebp
     mov ebp, esp
 
@@ -231,7 +231,7 @@ read_number:
         jmp read_number___read_input
 
     read_number___convert_from_ascii_to_number:
-        push dword [ebp + 12] ; Pushing the decimal buffer
+        push dword [ebp + 12] ; Pushing the number buffer
         push dword [ebp + 8] ; Pushing the ASCII buffer
         call convert_string_to_number
 
@@ -258,7 +258,7 @@ start_user_selected_operation:
     int 0x80
 
     ; Read first number
-    push user_num_1_decimal_buffer
+    push user_num_1_number_buffer
     push user_num_1_ascii_buffer
     call read_number
 
@@ -270,7 +270,7 @@ start_user_selected_operation:
     int 0x80
     
     ; Read second number
-    push user_num_2_decimal_buffer
+    push user_num_2_number_buffer
     push user_num_2_ascii_buffer
     call read_number
 
@@ -286,17 +286,17 @@ start_user_selected_operation:
     je start_operation___division
 
     start_operation___addition:
-        mov eax, [user_num_1_decimal_buffer]
-        mov ebx, [user_num_2_decimal_buffer]
+        mov eax, [user_num_1_number_buffer]
+        mov ebx, [user_num_2_number_buffer]
         add eax, ebx
-        mov [calculation_result_decimal_buffer], eax
+        mov [calculation_result_number_buffer], eax
         jmp start_user_selected_operation___convert_and_print_result
    
     start_operation___subtraction:
-        mov eax, [user_num_1_decimal_buffer]
-        mov ebx, [user_num_2_decimal_buffer]
+        mov eax, [user_num_1_number_buffer]
+        mov ebx, [user_num_2_number_buffer]
         sub eax, ebx
-        mov [calculation_result_decimal_buffer], eax
+        mov [calculation_result_number_buffer], eax
         jmp start_user_selected_operation___convert_and_print_result
 
     start_operation___multiplication:
@@ -306,9 +306,9 @@ start_user_selected_operation:
         jmp start_user_selected_operation___convert_and_print_result
 
     start_user_selected_operation___convert_and_print_result:
-        ; Convert decimal result to ASCII
+        ; Convert number result to ASCII
         push calculation_result_ascii_buffer
-        push calculation_result_decimal_buffer
+        push calculation_result_number_buffer
         call convert_number_to_string
 
         ; Output 'Result: (string in result buffer)'
@@ -337,8 +337,9 @@ start_user_selected_operation:
     ret
 
 convert_string_to_number:
+    ; Convert ASCII representation of a number into a literal number and store in buffer.
     ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
-    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in decimal.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number.
     push ebp
     mov ebp, esp
 
@@ -366,7 +367,7 @@ convert_string_to_number:
         jmp convert_string_to_number___loop
 
     convert_string_to_number___save_converted_number:
-        mov edx, [ebp + 12] ; Loading the decimal buffer address into edx
+        mov edx, [ebp + 12] ; Loading the number buffer address into edx
         test ecx, ecx; Check the number flag that was set at the start
         jz convert_string_to_number___store_value_into_buffer ; If zero (positive)
         neg ebx ; Negate the final number (if flag is non zero)
@@ -378,12 +379,13 @@ convert_string_to_number:
     ret
 
 convert_number_to_string:
-    ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in decimal.
-    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in ASCII.
+    ; Convert a literal number to its ASCII representation and store in buffer.
+    ; Arg_1 (ebp+8) - address to buffer that holds the number to be converted.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number.
     push ebp
     mov ebp, esp
 
-    mov ebx, [ebp + 8] ; Load decimal buffer containing number to be converted
+    mov ebx, [ebp + 8] ; Load number buffer address
     mov eax, [ebx] ; Load the literal value in the buffer into eax
 
     convert_number_to_string___check_if_number_is_negative:
@@ -397,7 +399,7 @@ convert_number_to_string:
         inc ebx ; Increment buffer pointer so it points to the second element (an empty space)
         mov [ebp + 12], ebx ; Overwrite the old buffer starting address with the new one
     
-    ; Convert from decimal to ASCII and push converted characters onto the stack.
+    ; Convert from number to ASCII and push converted characters onto the stack.
     convert_number_to_string___push_to_stack:
         mov edx, 0 ; Fill higher order bits
         mov ecx, 10 ; Divisor
@@ -407,7 +409,7 @@ convert_number_to_string:
         test eax, eax ; If quotient is not 0, keep converting
         jne convert_number_to_string___push_to_stack
 
-    ; Pop characters from the stack into buffer that will contain converted number
+    ; Pop characters from the stack into buffer that will contain the converted number
     xor edi, edi ; Clear edi register
     convert_number_to_string___pop_from_stack:
         mov ebx, [ebp + 12] ; Load the address of the buffer
@@ -461,15 +463,15 @@ clear_all_buffers:
     push calculation_result_ascii_buffer
     call clear_buffer
 
-    ; Clear all decimal buffers
-    push DECIMAL_BUFFER_LEN
-    push user_num_1_decimal_buffer
+    ; Clear all number buffers
+    push NUMBER_BUFFER_LEN
+    push user_num_1_number_buffer
     call clear_buffer
-    push DECIMAL_BUFFER_LEN 
-    push user_num_2_decimal_buffer
+    push NUMBER_BUFFER_LEN 
+    push user_num_2_number_buffer
     call clear_buffer
-    push DECIMAL_BUFFER_LEN 
-    push calculation_result_decimal_buffer
+    push NUMBER_BUFFER_LEN 
+    push calculation_result_number_buffer
     call clear_buffer
 
     mov esp, ebp
