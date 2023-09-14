@@ -182,62 +182,58 @@ read_user_continue_choice:
         ret
 
 read_number:
-    ; Read user input from STDIN, convert string to decimal and store in buffer.
-    ; Arg_1 (ebp+8) - address to buffer that user's input from STDIN (ASCII).
+    ; Read user input from stdin, convert string to decimal and store in buffer.
+    ; Arg_1 (ebp+8) - address to buffer that stores users' input from stdin (ASCII).
     ; Arg_2 (ebp+12) - address to buffer that will hold decimal representation.
     push ebp
     mov ebp, esp
 
-    read_number___start:
-        ; Read stdin buffer
+    read_number___read_input:
+        mov esi, [ebp + 8] ; Load ASCII buffer address (reload the original each time)
         mov eax, SYS_READ
         mov ebx, STDIN
-        mov ecx, [ebp + 8]
+        mov ecx, esi
         mov edx, USER_NUM_ASCII_BUFFER_LEN
         int 0x80
 
-        mov esi, [ebp + 8] ; Load ASCII buffer
-        xor edi, edi ; Clear edi register
+    read_number___validate_input:
+        xor edi, edi
+        mov al, byte [esi] ; Get the first character from the ASCII buffer
+        ; Reject input if it is empty (only a new line character)
+        cmp al, 0xa
+        je read_number___reject_input
+        ; Reject input if user typed "-" + Enter (new line character)
+        cmp al, "-"
+        jne read_number___verify_all_chars_in_buffer_are_digits ; No need to check second char if number is positive
+        inc esi ; Make buffer pointer point at the second char
+        cmp byte [esi], 0xa
+        je read_number___reject_input
+    
+    read_number___verify_all_chars_in_buffer_are_digits:
+        mov al, byte [esi + edi]
+        cmp al, 0xa
+        je read_number___convert_from_ascii_to_number
+        ; Check if the read byte is a digit
+        cmp al, "0"
+        jl read_number___reject_input
+        cmp al, "9"
+        jg read_number___reject_input
+        inc edi
+        ; Continue reading untill new line character
+        jmp read_number___verify_all_chars_in_buffer_are_digits
 
-        ; Check for invalid input scenarios:
-        ; - User pressed Enter without typing anything
-        ; - User typed only a dash and pressed Enter
-        mov al, byte [esi]  ; Get the first character from the ASCII buffer
-        cmp al, 0xa ; Check if it's a new line character (Enter key)
-        je read_number___invalid_input
-        cmp al, "-" ; Check if the first character is a dash
-        je read_number_check___second_character
-        jmp read_number___verify_all_chars_in_buffer_are_digits ; If there's no dash, jump into verifying loop
-        ; Prevents the user from entering a dash and immediately pressing Enter
-        read_number_check___second_character:
-            inc esi
-            cmp byte [esi], 0xa
-            je read_number___invalid_input
-            
-        read_number___verify_all_chars_in_buffer_are_digits:
-            mov al, byte [esi + edi] ; Get first char in the ASCII buffer
-            cmp al, 0xa ; Check if it's a new line character
-            je read_number___convert_from_ascii_to_decimal
-            ; Check if the read byte is a digit
-            cmp al, "0"
-            jl read_number___invalid_input
-            cmp al, "9"
-            jg read_number___invalid_input
-            inc edi
-            jmp read_number___verify_all_chars_in_buffer_are_digits
+    read_number___reject_input:
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_INVALID_INPUT
+        mov edx, MSG_LEN_INVALID_INPUT
+        int 0x80
+        jmp read_number___read_input
 
-        read_number___invalid_input:
-            mov eax, SYS_WRITE
-            mov ebx, STDOUT
-            mov ecx, MSG_INVALID_INPUT
-            mov edx, MSG_LEN_INVALID_INPUT
-            int 0x80
-            jmp read_number___start ; Read input again if invalid
-
-        read_number___convert_from_ascii_to_decimal:
-            push dword [ebp + 12] ; Pushing the decimal buffer
-            push dword [ebp + 8] ; Pushing the ASCII buffer
-            call convert_string_to_number
+    read_number___convert_from_ascii_to_number:
+        push dword [ebp + 12] ; Pushing the decimal buffer
+        push dword [ebp + 8] ; Pushing the ASCII buffer
+        call convert_string_to_number
 
     mov esp, ebp
     pop ebp
