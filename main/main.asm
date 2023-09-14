@@ -31,10 +31,12 @@ section .data
     MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
     MSG_PERFORM_ANOTHER_OPERATION db "Would you like to perform another operation? (y/n): "
     MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
+    MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!"
+    MSG_LEN_CANT_DIVIDE_BY_ZERO equ $ - MSG_CANT_DIVIDE_BY_ZERO
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
-    USER_NUM_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
-    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
-    NUMBER_BUFFER_LEN equ 4
+    USER_NUM_ASCII_BUFFER_LEN equ 255
+    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 255
+    NUMBER_BUFFER_LEN equ 8 ; 32bit number
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
@@ -44,6 +46,10 @@ section .bss
     user_num_2_number_buffer resd NUMBER_BUFFER_LEN
     calculation_result_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
     calculation_result_number_buffer resd NUMBER_BUFFER_LEN
+    division_quotient_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
+    division_quotient_number_buffer resd NUMBER_BUFFER_LEN
+    division_decimal_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
+    division_decimal_number_buffer resd NUMBER_BUFFER_LEN
 
 section .text
     global _start
@@ -307,7 +313,87 @@ start_user_selected_operation:
         jmp start_user_selected_operation___convert_and_print_result
 
     start_operation___division:
-        jmp start_user_selected_operation___convert_and_print_result
+        xor edx, edx
+        ; Get quotient part of the final number
+        mov eax, [user_num_1_number_buffer] ; Load dividend
+        mov ecx, [user_num_2_number_buffer] ; Load divisor
+        cmp ecx, 0 ; Prevent division by 0
+        je start_operation___division___print_cant_divide_by_zero
+        div ecx
+        mov [division_quotient_number_buffer], eax
+        ; Get decimal part of the final number
+        mov eax, edx
+        xor edx, edx
+        imul eax, 1000 ; Scale remainder for three decimal places of precision
+        div ecx
+        mov [division_decimal_number_buffer], eax
+
+        start_operation___division___convert_quotient_to_ascii:
+            push division_quotient_ascii_buffer
+            push division_quotient_number_buffer
+            call convert_number_to_string
+
+        start_operation___division___convert_decimal_to_ascii:
+            push division_decimal_ascii_buffer
+            push division_decimal_number_buffer
+            call convert_number_to_string
+
+        ; Count quotient string length
+        xor edi, edi
+        push division_quotient_ascii_buffer
+        call count_string_length
+
+        ; Add decimal point to the end of the quotient string
+        mov esi, division_quotient_ascii_buffer
+        mov byte [esi + edi], "." ; Add the decimal point
+        ; Add null terminator after decimal point
+        inc edi
+        mov byte [esi + edi], 0
+
+        ; Save the length of the quotient string for later use
+        push edi
+
+        ; Copy quotient buffer content to calculation result buffer
+        mov ecx, edi
+        mov esi, division_quotient_ascii_buffer ; Source pointer
+        mov edi, calculation_result_ascii_buffer ; Destination pointer
+        cld ; Clear the direction flag for forward movement
+        rep movsb ; Copy the string byte by byte
+        
+        ; Move the destination pointer (edi) to the end of the quotient string
+        lea ecx, calculation_result_ascii_buffer
+        pop edi ; Pop the quotient string length
+        add ecx, edi ; ecx now points to the end of the quotient string within the calculation result buffer
+
+        ; Calculate the length of the decimal string
+        xor edi, edi
+        push division_decimal_ascii_buffer
+        call count_string_length
+
+        ; Save ecx for later use
+        push ecx
+
+        ; Copy decimal buffer content to calculation result buffer after the quotient
+        mov ecx, edi ; Length of the decimal string
+        mov esi, division_decimal_ascii_buffer ; Source pointer
+        pop edi ; Destination pointer
+        cld ; Clear the direction flag for forward movement
+        rep movsb ; Copy the decimal string
+
+        ; Add new line feed and null terminator 
+        ; Makes separator print on a new line after printing the result
+        mov byte [edi], 0xa
+        mov byte [edi + 1], 0
+
+        jmp start_user_selected_operation___print_division_result
+
+        start_operation___division___print_cant_divide_by_zero:
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_TITLE
+            mov edx, MSG_LEN_TITLE
+            int 0x80
+            jmp start_user_selected_operation___clear_all_buffers
 
     start_user_selected_operation___convert_and_print_result:
         ; Convert number result to ASCII
@@ -315,6 +401,7 @@ start_user_selected_operation:
         push calculation_result_number_buffer
         call convert_number_to_string
 
+    start_user_selected_operation___print_division_result:
         ; Output 'Result: (string in result buffer)'
         mov eax, SYS_WRITE
         mov ebx, STDOUT
@@ -334,7 +421,8 @@ start_user_selected_operation:
         mov edx, MSG_LEN_SEPARATOR
         int 0x80
 
-    call clear_all_buffers
+    start_user_selected_operation___clear_all_buffers:
+        call clear_all_buffers
 
     mov esp, ebp
     pop ebp
@@ -466,6 +554,12 @@ clear_all_buffers:
     push CALCULATION_RESULT_ASCII_BUFFER_LEN 
     push calculation_result_ascii_buffer
     call clear_buffer
+    push CALCULATION_RESULT_ASCII_BUFFER_LEN
+    push division_quotient_ascii_buffer
+    call clear_buffer
+    push CALCULATION_RESULT_ASCII_BUFFER_LEN
+    push division_decimal_ascii_buffer
+    call clear_buffer
 
     ; Clear all number buffers
     push NUMBER_BUFFER_LEN
@@ -476,6 +570,12 @@ clear_all_buffers:
     call clear_buffer
     push NUMBER_BUFFER_LEN 
     push calculation_result_number_buffer
+    call clear_buffer
+    push NUMBER_BUFFER_LEN
+    push division_quotient_number_buffer
+    call clear_buffer
+    push NUMBER_BUFFER_LEN
+    push division_decimal_number_buffer
     call clear_buffer
 
     mov esp, ebp
@@ -493,13 +593,15 @@ count_string_length:
     
     count_string_length___loop:
         mov al, byte [esi + edi]
+        cmp al, 0
+        je count_string_length___return
         inc edi
-        cmp al, 0xa
         jne count_string_length___loop
 
-    mov esp, ebp
-    pop ebp
-    ret   
+    count_string_length___return:
+        mov esp, ebp
+        pop ebp
+        ret   
 
 print_title:
     push ebp
