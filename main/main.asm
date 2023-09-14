@@ -66,55 +66,54 @@ _start:
     int 0x80
 
 read_user_operation_choice:
-    ; Read what operation user selects (addition, subtraction etc.).
+    ; Read and validate the user's choice of operation (e.g., addition, subtraction).
     push ebp
     mov ebp, esp
 
-    read_user_operation_choice___start:
-        ; Read stdin buffer
+    mov esi, user_choice_ascii_buffer ; Load buffer address
+
+    read_user_operation_choice___read_input:
         mov eax, SYS_READ
         mov ebx, STDIN
-        mov ecx, user_choice_ascii_buffer
+        mov ecx, esi
         mov edx, USER_CHOICE_ASCII_BUFFER_LEN
         int 0x80
 
-        mov esi, user_choice_ascii_buffer ; Load buffer
-        xor edi, edi ; Clear edi register
-
-        mov al, byte [esi + edi] ; Get first char in the buffer
-        cmp al, 0xa ; Check if it's a new line character
-        je read_user_operation_choice___invalid_input
-
-        ; Check if read byte is a digit (and a valid option)
+    read_user_operation_choice___validate_input:
+        xor edi, edi
+        push esi
+        call count_string_length
+        ; Reject input if it is empty (only a newline character)
+        cmp edi, 1 
+        je read_user_operation_choice___reject_input
+        ; Reject input if it is longer than 2 characters (only 1 character + null terminator allowed)
+        cmp edi, 2
+        jg read_user_operation_choice___reject_input
+        ; Reject input if the first character in the buffer does not correspond to an operation
+        mov al, byte [esi]
         cmp al, "1"
-        jl read_user_operation_choice___invalid_input
+        jl read_user_operation_choice___reject_input
         cmp al, "4"
-        jg read_user_operation_choice___invalid_input
-        
-        ; Jump if input is valid (1-4)
-        jmp read_user_operation_choice___remove_null_terminator
+        jg read_user_operation_choice___reject_input
+        ; If all checks pass
+        jmp read_user_operation_choice___return
 
-        read_user_operation_choice___invalid_input:
-            mov eax, SYS_WRITE
-            mov ebx, STDOUT
-            mov ecx, MSG_INVALID_CHOICE
-            mov edx, MSG_LEN_INVALID_CHOICE
-            int 0x80
-            ; Clear buffer before reading input again
-            push USER_CHOICE_ASCII_BUFFER_LEN
-            push user_choice_ascii_buffer
-            call clear_buffer
-            add esp, 8
-            jmp read_user_operation_choice___start
+    read_user_operation_choice___reject_input:
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_INVALID_CHOICE
+        mov edx, MSG_LEN_INVALID_CHOICE
+        int 0x80
+        ; Clear buffer before reading input again
+        push USER_CHOICE_ASCII_BUFFER_LEN
+        push user_choice_ascii_buffer
+        call clear_buffer
+        jmp read_user_operation_choice___read_input
 
-        read_user_operation_choice___remove_null_terminator:
-            mov eax, dword [user_choice_ascii_buffer]
-            xor ah, ah
-            mov [user_choice_ascii_buffer], eax
-
-    mov esp, ebp
-    pop ebp
-    ret
+    read_user_operation_choice___return
+        mov esp, ebp
+        pop ebp
+        ret
 
 read_user_continue_choice:
     ; Read if user wants to continue after an operation (calculation) was done.
@@ -279,14 +278,14 @@ start_user_selected_operation:
     call read_number
 
     ; Perform operation based on user's choice
-    mov eax, dword [user_choice_ascii_buffer]
-    cmp eax, "1"
+    mov al, byte [user_choice_ascii_buffer]
+    cmp al, "1"
     je start_operation___addition
-    cmp eax, "2"
+    cmp al, "2"
     je start_operation___subtraction
-    cmp eax, "3"
+    cmp al, "3"
     je start_operation___multiplication
-    cmp eax, "4"
+    cmp al, "4"
     je start_operation___division
 
     start_operation___addition:
@@ -479,6 +478,25 @@ clear_all_buffers:
     mov esp, ebp
     pop ebp
     ret
+
+count_string_length:
+    ; Counts length of string stored in a buffer. Value is saved in edi register. Includes the null terminator.
+    ; Arg_1 (ebp+8) - buffer that holds the string.
+    push ebp
+    mov ebp, esp
+
+    xor edi, edi
+    mov esi, [ebp + 8]
+    
+    count_string_length___loop:
+        mov al, byte [esi + edi]
+        inc edi
+        cmp al, 0xa
+        jne count_string_length___loop
+
+    mov esp, ebp
+    pop ebp
+    ret   
 
 print_title:
     push ebp
