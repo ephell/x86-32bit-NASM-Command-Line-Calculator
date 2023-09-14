@@ -39,9 +39,9 @@ section .data
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
     user_num_1_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_1_number_buffer resd NUMBER_BUFFER_LEN ; For storage after conversion from ASCII
+    user_num_1_number_buffer resd NUMBER_BUFFER_LEN
     user_num_2_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_2_number_buffer resd NUMBER_BUFFER_LEN ; For storage after conversion from ASCII
+    user_num_2_number_buffer resd NUMBER_BUFFER_LEN
     calculation_result_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
     calculation_result_number_buffer resd NUMBER_BUFFER_LEN
 
@@ -110,7 +110,7 @@ read_user_operation_choice:
         call clear_buffer
         jmp read_user_operation_choice___read_input
 
-    read_user_operation_choice___return
+    read_user_operation_choice___return:
         mov esp, ebp
         pop ebp
         ret
@@ -300,6 +300,10 @@ start_user_selected_operation:
         jmp start_user_selected_operation___convert_and_print_result
 
     start_operation___multiplication:
+        mov eax, [user_num_1_number_buffer]
+        mov ebx, [user_num_2_number_buffer]
+        imul eax, ebx
+        mov [calculation_result_number_buffer], eax
         jmp start_user_selected_operation___convert_and_print_result
 
     start_operation___division:
