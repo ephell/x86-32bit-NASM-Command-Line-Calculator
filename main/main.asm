@@ -296,24 +296,24 @@ start_user_selected_operation:
         mov ebx, [user_num_2_number_buffer]
         add eax, ebx
         mov [calculation_result_number_buffer], eax
-        jmp start_user_selected_operation___convert_and_print_result
+        jmp start_user_selected_operation___convert_result_from_number_to_ascii
    
     start_operation___subtraction:
         mov eax, [user_num_1_number_buffer]
         mov ebx, [user_num_2_number_buffer]
         sub eax, ebx
         mov [calculation_result_number_buffer], eax
-        jmp start_user_selected_operation___convert_and_print_result
+        jmp start_user_selected_operation___convert_result_from_number_to_ascii
 
     start_operation___multiplication:
         mov eax, [user_num_1_number_buffer]
         mov ebx, [user_num_2_number_buffer]
         imul eax, ebx
         mov [calculation_result_number_buffer], eax
-        jmp start_user_selected_operation___convert_and_print_result
+        jmp start_user_selected_operation___convert_result_from_number_to_ascii
 
     start_operation___division:
-        xor edx, edx
+        xor edx, edx ; Clear edx register (it stores the remainder)
         ; Get quotient part of the final number
         mov eax, [user_num_1_number_buffer] ; Load dividend
         mov ecx, [user_num_2_number_buffer] ; Load divisor
@@ -328,64 +328,55 @@ start_user_selected_operation:
         div ecx
         mov [division_decimal_number_buffer], eax
 
-        start_operation___division___convert_quotient_to_ascii:
-            push division_quotient_ascii_buffer
-            push division_quotient_number_buffer
-            call convert_number_to_string
+        ; Convert quotient part to ASCII
+        push division_quotient_ascii_buffer
+        push division_quotient_number_buffer
+        call convert_number_to_string
 
-        start_operation___division___convert_decimal_to_ascii:
-            push division_decimal_ascii_buffer
-            push division_decimal_number_buffer
-            call convert_number_to_string
+        ; Convert decimal part to ASCII
+        push division_decimal_ascii_buffer
+        push division_decimal_number_buffer
+        call convert_number_to_string
 
-        ; Count quotient string length
+        ; Copy quotient buffer content to calculation result buffer
         xor edi, edi
         push division_quotient_ascii_buffer
         call count_string_length
-
-        ; Add decimal point to the end of the quotient string
+        mov ecx, edi
         mov esi, division_quotient_ascii_buffer
-        mov byte [esi + edi], "." ; Add the decimal point
-        ; Add null terminator after decimal point
+        mov edi, calculation_result_ascii_buffer
+        cld
+        rep movsb
+
+        ; Add decimal point and null terminator after the quotient in the calculation result buffer
+        xor edi, edi
+        push calculation_result_ascii_buffer
+        call count_string_length
+        mov esi, calculation_result_ascii_buffer
+        mov byte [esi + edi], "."
         inc edi
         mov byte [esi + edi], 0
-
-        ; Save the length of the quotient string for later use
-        push edi
-
-        ; Copy quotient buffer content to calculation result buffer
-        mov ecx, edi
-        mov esi, division_quotient_ascii_buffer ; Source pointer
-        mov edi, calculation_result_ascii_buffer ; Destination pointer
-        cld ; Clear the direction flag for forward movement
-        rep movsb ; Copy the string byte by byte
         
-        ; Move the destination pointer (edi) to the end of the quotient string
-        lea ecx, calculation_result_ascii_buffer
-        pop edi ; Pop the quotient string length
-        add ecx, edi ; ecx now points to the end of the quotient string within the calculation result buffer
+        ; Set ebx to point to byte after "." in the calculation result buffer
+        lea ebx, calculation_result_ascii_buffer
+        add ebx, edi 
 
-        ; Calculate the length of the decimal string
+        ; Copy decimal buffer content to calculation result buffer after the "."
         xor edi, edi
         push division_decimal_ascii_buffer
         call count_string_length
-
-        ; Save ecx for later use
-        push ecx
-
-        ; Copy decimal buffer content to calculation result buffer after the quotient
-        mov ecx, edi ; Length of the decimal string
-        mov esi, division_decimal_ascii_buffer ; Source pointer
-        pop edi ; Destination pointer
-        cld ; Clear the direction flag for forward movement
-        rep movsb ; Copy the decimal string
+        mov ecx, edi
+        mov esi, division_decimal_ascii_buffer
+        mov edi, ebx
+        cld
+        rep movsb
 
         ; Add new line feed and null terminator 
         ; Makes separator print on a new line after printing the result
         mov byte [edi], 0xa
         mov byte [edi + 1], 0
 
-        jmp start_user_selected_operation___print_division_result
+        jmp start_user_selected_operation___print_calculation_result
 
         start_operation___division___print_cant_divide_by_zero:
             mov eax, SYS_WRITE
@@ -395,13 +386,12 @@ start_user_selected_operation:
             int 0x80
             jmp start_user_selected_operation___clear_all_buffers
 
-    start_user_selected_operation___convert_and_print_result:
-        ; Convert number result to ASCII
+    start_user_selected_operation___convert_result_from_number_to_ascii:
         push calculation_result_ascii_buffer
         push calculation_result_number_buffer
         call convert_number_to_string
 
-    start_user_selected_operation___print_division_result:
+    start_user_selected_operation___print_calculation_result:
         ; Output 'Result: (string in result buffer)'
         mov eax, SYS_WRITE
         mov ebx, STDOUT
