@@ -50,6 +50,8 @@ section .bss
     division_quotient_number_buffer resd NUMBER_BUFFER_LEN
     division_decimal_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
     division_decimal_number_buffer resd NUMBER_BUFFER_LEN
+    division_original_remainder_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
+    division_original_remainder_number_buffer resd NUMBER_BUFFER_LEN
 
 section .text
     global _start
@@ -76,9 +78,8 @@ read_user_operation_choice:
     push ebp
     mov ebp, esp
 
-    mov esi, user_choice_ascii_buffer ; Load buffer address
-
     read_user_operation_choice___read_input:
+        mov esi, user_choice_ascii_buffer ; Load buffer address
         mov eax, SYS_READ
         mov ebx, STDIN
         mov ecx, esi
@@ -313,20 +314,70 @@ start_user_selected_operation:
         jmp start_user_selected_operation___convert_result_from_number_to_ascii
 
     start_operation___division:
-        xor edx, edx ; Clear edx register (it stores the remainder)
-        ; Get quotient part of the final number
-        mov eax, [user_num_1_number_buffer] ; Load dividend
-        mov ecx, [user_num_2_number_buffer] ; Load divisor
-        cmp ecx, 0 ; Prevent division by 0
-        je start_operation___division___print_cant_divide_by_zero
-        div ecx
-        mov [division_quotient_number_buffer], eax
-        ; Get decimal part of the final number
-        mov eax, edx
-        xor edx, edx
-        imul eax, 1000 ; Scale remainder for three decimal places of precision
-        div ecx
-        mov [division_decimal_number_buffer], eax
+        xor edx, edx ; Prepare edx for division by clearing it
+        start_operation___division___get_quotient_part_of_final_number:
+            mov eax, [user_num_1_number_buffer] ; Load dividend
+            mov ecx, [user_num_2_number_buffer] ; Load divisor
+            cmp ecx, 0 ; Prevent division by 0
+            je start_operation___division___print_cant_divide_by_zero
+            idiv ecx
+            mov [division_quotient_number_buffer], eax
+            push edx ; Save the original remainder on the stack
+
+        start_operation___division___get_decimal_part_of_final_number:
+            ; Count total amount of digits in the decimal part
+            mov eax, edx ; Load the original remainder
+            mov ecx, 10
+            xor ebx, ebx ; Clear ebx to store the count
+            start_operation___division___count_decimal_part_digits:
+                xor edx, edx
+                idiv ecx
+                inc ebx
+                test eax, eax
+                jnz start_operation___division___count_decimal_part_digits
+
+            ; Calculate how many digits the scaling factor number can have
+            mov eax, 10 ; Max 10 digits possible (32bit number)
+            sub eax, ebx ; 10 - total amount of digits in the decimal part
+            push eax ; Save the digit count on the stack
+
+            ; If the first digit of the original remainder is greater than 2, 
+            ; decrease the digit count of the scaling factor number by 1. 
+            ; This adjustment prevents the construction of an excessively large 
+            ; scaling factor, which could lead to register overflow when scaling 
+            ; the original remainder.
+            mov edx, [esp + 4] ; Load the original remainder
+            mov [division_original_remainder_number_buffer], edx
+            push division_original_remainder_ascii_buffer
+            push division_original_remainder_number_buffer
+            call convert_number_to_string
+            add esp, 8 ; Remove the two buffers from the stack
+            mov ebx, [esp] ; Load the digit count of the scaling factor
+            mov eax, division_original_remainder_ascii_buffer
+            mov al, byte [eax]
+            sub al, "0"
+            cmp al, 2
+            jle start_operation___division___construct_scaling_factor_number
+            dec ebx ; Decrement the scaling factor number digit count
+
+            start_operation___division___construct_scaling_factor_number:
+                mov eax, 1
+                shift_loop:
+                    imul eax, 10
+                    dec ebx
+                    jnz shift_loop
+                mov ecx, eax ; Store the scaling factor number
+
+            ; Scale the original remainder
+            mov eax, [esp + 4] ; Load the original remainder
+            imul eax, ecx
+
+            ; Divide the scaled remainder by the original divisor to
+            ; get the decimal part of the final number
+            mov ecx, [user_num_2_number_buffer] ; Load the original divisor
+            xor edx, edx
+            idiv ecx
+            mov [division_decimal_number_buffer], eax
 
         ; Convert quotient part to ASCII
         push division_quotient_ascii_buffer
