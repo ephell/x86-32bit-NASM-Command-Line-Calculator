@@ -31,12 +31,15 @@ section .data
     MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
     MSG_PERFORM_ANOTHER_OPERATION db "Would you like to perform another operation? (y/n): "
     MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
-    MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!"
+    MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!", 0xa
     MSG_LEN_CANT_DIVIDE_BY_ZERO equ $ - MSG_CANT_DIVIDE_BY_ZERO
+    MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED db "Result is too small to be displayed!", 0xa
+    MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED equ $ - MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
     USER_NUM_ASCII_BUFFER_LEN equ 255
     CALCULATION_RESULT_ASCII_BUFFER_LEN equ 255
     NUMBER_BUFFER_LEN equ 8 ; 32bit number
+    DIVISION_DECIMAL_PRECISION equ 10
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
@@ -50,8 +53,7 @@ section .bss
     division_quotient_number_buffer resd NUMBER_BUFFER_LEN
     division_decimal_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
     division_decimal_number_buffer resd NUMBER_BUFFER_LEN
-    division_original_remainder_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
-    division_original_remainder_number_buffer resd NUMBER_BUFFER_LEN
+    division_decimal_temp_ascii_buffer resb 1 ; Used when calculating decimal part of division
 
 section .text
     global _start
@@ -322,118 +324,135 @@ start_user_selected_operation:
             je start_operation___division___print_cant_divide_by_zero
             idiv ecx
             mov [division_quotient_number_buffer], eax
-            push edx ; Save the original remainder on the stack
+            push edx ; Save remainder on the stack
+            ; Convert quotient part to ASCII
+            push division_quotient_ascii_buffer
+            push division_quotient_number_buffer
+            call convert_number_to_string
+            add esp, 8
 
         start_operation___division___get_decimal_part_of_final_number:
-            ; Count total amount of digits in the decimal part
-            mov eax, edx ; Load the original remainder
-            mov ecx, 10
-            xor ebx, ebx ; Clear ebx to store the count
-            start_operation___division___count_decimal_part_digits:
+            ; Restore remainder from the stack
+            pop edx
+            ; Initiate decimal part length counter
+            xor edi, edi
+            push edi
+            start_operation___division___get_decimal_part_of_final_number___loop:
+                ; Multiply remainder by 10
+                mov eax, edx
+                imul eax, 10
+
+                ; Check for overflow. If it occured then it means the decimal part 
+                ; is too small to be displayed.
+                jo start_operation___division___print_result_too_small_to_display
+
+                ; Divide the scaled remainder by the original divisor
                 xor edx, edx
-                idiv ecx
-                inc ebx
-                test eax, eax
-                jnz start_operation___division___count_decimal_part_digits
+                mov ebx, [user_num_2_number_buffer]
+                idiv ebx
 
-            ; Calculate how many digits the scaling factor number can have
-            mov eax, 10 ; Max 10 digits possible (32bit number)
-            sub eax, ebx ; 10 - total amount of digits in the decimal part
-            push eax ; Save the digit count on the stack
+                ; Save remainder of division on the stack
+                push edx
 
-            ; If the first digit of the original remainder is greater than 2, 
-            ; decrease the digit count of the scaling factor number by 1. 
-            ; This adjustment prevents the construction of an excessively large 
-            ; scaling factor, which could lead to register overflow when scaling 
-            ; the original remainder.
-            mov edx, [esp + 4] ; Load the original remainder
-            mov [division_original_remainder_number_buffer], edx
-            push division_original_remainder_ascii_buffer
-            push division_original_remainder_number_buffer
-            call convert_number_to_string
-            add esp, 8 ; Remove the two buffers from the stack
-            mov ebx, [esp] ; Load the digit count of the scaling factor
-            mov eax, division_original_remainder_ascii_buffer
-            mov al, byte [eax]
-            sub al, "0"
-            cmp al, 2
-            jle start_operation___division___construct_scaling_factor_number
-            dec ebx ; Decrement the scaling factor number digit count
+                ; Store quotient part in buffer
+                mov [division_decimal_number_buffer], eax
 
-            start_operation___division___construct_scaling_factor_number:
-                mov eax, 1
-                shift_loop:
-                    imul eax, 10
-                    dec ebx
-                    jnz shift_loop
-                mov ecx, eax ; Store the scaling factor number
+                ; Convert quotient part to ASCII
+                push division_decimal_temp_ascii_buffer
+                push division_decimal_number_buffer
+                call convert_number_to_string
+                add esp, 8
+                ; Clear division_decimal_number_buffer
+                push NUMBER_BUFFER_LEN
+                push division_decimal_number_buffer
+                call clear_buffer
+                add esp, 8
 
-            ; Scale the original remainder
-            mov eax, [esp + 4] ; Load the original remainder
-            imul eax, ecx
+                ; Restore remainder and decimal part length from the stack
+                pop edx
+                pop edi
 
-            ; Divide the scaled remainder by the original divisor to
-            ; get the decimal part of the final number
-            mov ecx, [user_num_2_number_buffer] ; Load the original divisor
-            xor edx, edx
-            idiv ecx
-            mov [division_decimal_number_buffer], eax
+                ; Move the converted digit to the buffer that stores whole decimal part
+                mov al, byte [division_decimal_temp_ascii_buffer]
+                lea ecx, division_decimal_ascii_buffer
+                mov [ecx + edi], al
+                inc edi ; Increment the decimal part digit count
+                push edi ; Save digit count on the stack
 
-        ; Convert quotient part to ASCII
-        push division_quotient_ascii_buffer
-        push division_quotient_number_buffer
-        call convert_number_to_string
+                ; Check if remainder is 0 (meaning decimal part calculation can stop)
+                cmp edx, 0
+                je start_operation___division___concatenate_quotient_and_decimal_parts
 
-        ; Convert decimal part to ASCII
-        push division_decimal_ascii_buffer
-        push division_decimal_number_buffer
-        call convert_number_to_string
+                ; Check if we have reached the maximum wanted precision
+                cmp edi, DIVISION_DECIMAL_PRECISION
+                jl start_operation___division___get_decimal_part_of_final_number___loop
 
-        ; Copy quotient buffer content to calculation result buffer
-        xor edi, edi
-        push division_quotient_ascii_buffer
-        call count_string_length
-        mov ecx, edi
-        mov esi, division_quotient_ascii_buffer
-        mov edi, calculation_result_ascii_buffer
-        cld
-        rep movsb
+        start_operation___division___concatenate_quotient_and_decimal_parts:
+            ; Copy quotient buffer content to calculation result buffer
+            xor edi, edi
+            push division_quotient_ascii_buffer
+            call count_string_length
+            mov ecx, edi
+            mov esi, division_quotient_ascii_buffer
+            mov edi, calculation_result_ascii_buffer
+            cld
+            rep movsb
 
-        ; Add decimal point and null terminator after the quotient in the calculation result buffer
-        xor edi, edi
-        push calculation_result_ascii_buffer
-        call count_string_length
-        mov esi, calculation_result_ascii_buffer
-        mov byte [esi + edi], "."
-        inc edi
-        mov byte [esi + edi], 0
-        
-        ; Set ebx to point to byte after "." in the calculation result buffer
-        lea ebx, calculation_result_ascii_buffer
-        add ebx, edi 
+            ; Add decimal point and null terminator after the quotient in the calculation result buffer
+            xor edi, edi
+            push calculation_result_ascii_buffer
+            call count_string_length
+            mov esi, calculation_result_ascii_buffer
+            mov byte [esi + edi], "."
+            inc edi
+            mov byte [esi + edi], 0
+            
+            ; Set ebx to point to byte after "." in the calculation result buffer
+            lea ebx, calculation_result_ascii_buffer
+            add ebx, edi 
 
-        ; Copy decimal buffer content to calculation result buffer after the "."
-        xor edi, edi
-        push division_decimal_ascii_buffer
-        call count_string_length
-        mov ecx, edi
-        mov esi, division_decimal_ascii_buffer
-        mov edi, ebx
-        cld
-        rep movsb
+            ; Copy decimal buffer content to calculation result buffer after the "."
+            xor edi, edi
+            push division_decimal_ascii_buffer
+            call count_string_length
+            mov ecx, edi
+            mov esi, division_decimal_ascii_buffer
+            mov edi, ebx
+            cld
+            rep movsb
 
-        ; Add new line feed and null terminator 
-        ; Makes separator print on a new line after printing the result
-        mov byte [edi], 0xa
-        mov byte [edi + 1], 0
+            ; Add new line feed and null terminator 
+            ; Makes separator print on a new line after printing the result
+            mov byte [edi], 0xa
+            mov byte [edi + 1], 0
 
-        jmp start_user_selected_operation___print_calculation_result
+            jmp start_user_selected_operation___print_calculation_result
 
         start_operation___division___print_cant_divide_by_zero:
             mov eax, SYS_WRITE
             mov ebx, STDOUT
-            mov ecx, MSG_TITLE
-            mov edx, MSG_LEN_TITLE
+            mov ecx, MSG_CANT_DIVIDE_BY_ZERO
+            mov edx, MSG_LEN_CANT_DIVIDE_BY_ZERO
+            int 0x80
+            ; Separator
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_SEPARATOR
+            mov edx, MSG_LEN_SEPARATOR
+            int 0x80
+            jmp start_user_selected_operation___clear_all_buffers
+
+        start_operation___division___print_result_too_small_to_display:
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+            mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+            int 0x80
+            ; Separator
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_SEPARATOR
+            mov edx, MSG_LEN_SEPARATOR
             int 0x80
             jmp start_user_selected_operation___clear_all_buffers
 
@@ -536,7 +555,7 @@ convert_number_to_string:
     convert_number_to_string___push_to_stack:
         mov edx, 0 ; Fill higher order bits
         mov ecx, 10 ; Divisor
-        div ecx
+        idiv ecx
         add edx, "0" ; Convert the remainder to ASCII
         push edx ; Push the converted character onto the stack
         test eax, eax ; If quotient is not 0, keep converting
