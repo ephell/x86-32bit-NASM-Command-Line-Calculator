@@ -31,19 +31,34 @@ section .data
     MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
     MSG_PERFORM_ANOTHER_OPERATION db "Would you like to perform another operation? (y/n): "
     MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
+    MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!", 0xa
+    MSG_LEN_CANT_DIVIDE_BY_ZERO equ $ - MSG_CANT_DIVIDE_BY_ZERO
+    MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED db "Result is too small to be displayed!", 0xa
+    MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED equ $ - MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
-    USER_NUM_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
-    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 13 ; 10 + 3 for null terminator, new line feed and '-' for negative numbers
-    DECIMAL_BUFFER_LEN equ 4
+    USER_NUM_ASCII_BUFFER_LEN equ 255
+    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 255
+    NUMBER_BUFFER_LEN equ 8
+    DIVISION_DECIMAL_PRECISION equ 10
+    DIVISION_SIGN_FLAG_BUFFER_LEN equ 8
+
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
     user_num_1_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_1_decimal_buffer resd DECIMAL_BUFFER_LEN ; For storage after conversion from ASCII
+    user_num_1_number_buffer resd NUMBER_BUFFER_LEN
     user_num_2_ascii_buffer resb USER_NUM_ASCII_BUFFER_LEN 
-    user_num_2_decimal_buffer resd DECIMAL_BUFFER_LEN ; For storage after conversion from ASCII
+    user_num_2_number_buffer resd NUMBER_BUFFER_LEN
     calculation_result_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
-    calculation_result_decimal_buffer resd DECIMAL_BUFFER_LEN
+    calculation_result_number_buffer resd NUMBER_BUFFER_LEN
+    division_quotient_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
+    division_quotient_number_buffer resd NUMBER_BUFFER_LEN
+    division_decimal_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
+    division_decimal_number_buffer resd NUMBER_BUFFER_LEN
+    division_decimal_temp_ascii_buffer resb 1
+    division_is_negative_dividend resd DIVISION_SIGN_FLAG_BUFFER_LEN
+    division_is_negative_divisor resd DIVISION_SIGN_FLAG_BUFFER_LEN
+    division_is_negative_final_result resd DIVISION_SIGN_FLAG_BUFFER_LEN
 
 section .text
     global _start
@@ -55,7 +70,7 @@ _start:
         call print_operation_options
         call print_select_operation
         call read_user_operation_choice
-        call start_user_selected_operation
+        call start_operation
         call print_ask_if_user_wants_to_continue
         call read_user_continue_choice
         cmp eax, 1 ; eax stores user's choice (1 - yes, 0 - no)
@@ -70,9 +85,8 @@ read_user_operation_choice:
     push ebp
     mov ebp, esp
 
-    mov esi, user_choice_ascii_buffer ; Load buffer address
-
     read_user_operation_choice___read_input:
+        mov esi, user_choice_ascii_buffer ; Load buffer address
         mov eax, SYS_READ
         mov ebx, STDIN
         mov ecx, esi
@@ -110,7 +124,7 @@ read_user_operation_choice:
         call clear_buffer
         jmp read_user_operation_choice___read_input
 
-    read_user_operation_choice___return
+    read_user_operation_choice___return:
         mov esp, ebp
         pop ebp
         ret
@@ -182,9 +196,9 @@ read_user_continue_choice:
         ret
 
 read_number:
-    ; Read user input from stdin, convert string to decimal and store in buffer.
-    ; Arg_1 (ebp+8) - address to buffer that stores users' input from stdin (ASCII).
-    ; Arg_2 (ebp+12) - address to buffer that will hold decimal representation.
+    ; Read user input from stdin, convert string to number and store in buffer.
+    ; Arg_1 (ebp+8) - address to buffer that holds users' input in ASCII.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the number.
     push ebp
     mov ebp, esp
 
@@ -231,7 +245,7 @@ read_number:
         jmp read_number___read_input
 
     read_number___convert_from_ascii_to_number:
-        push dword [ebp + 12] ; Pushing the decimal buffer
+        push dword [ebp + 12] ; Pushing the number buffer
         push dword [ebp + 8] ; Pushing the ASCII buffer
         call convert_string_to_number
 
@@ -239,7 +253,8 @@ read_number:
     pop ebp
     ret
 
-start_user_selected_operation:
+start_operation:
+    ; Start the operation selected by the user (e.g., addition, subtraction).
     push ebp
     mov ebp, esp
 
@@ -258,7 +273,7 @@ start_user_selected_operation:
     int 0x80
 
     ; Read first number
-    push user_num_1_decimal_buffer
+    push user_num_1_number_buffer
     push user_num_1_ascii_buffer
     call read_number
 
@@ -270,47 +285,248 @@ start_user_selected_operation:
     int 0x80
     
     ; Read second number
-    push user_num_2_decimal_buffer
+    push user_num_2_number_buffer
     push user_num_2_ascii_buffer
     call read_number
 
     ; Perform operation based on user's choice
     mov al, byte [user_choice_ascii_buffer]
     cmp al, "1"
-    je start_operation___addition
+    je addition
     cmp al, "2"
-    je start_operation___subtraction
+    je subtraction
     cmp al, "3"
-    je start_operation___multiplication
+    je multiplication
     cmp al, "4"
-    je start_operation___division
+    je division
 
-    start_operation___addition:
-        mov eax, [user_num_1_decimal_buffer]
-        mov ebx, [user_num_2_decimal_buffer]
+    addition:
+        mov eax, [user_num_1_number_buffer]
+        mov ebx, [user_num_2_number_buffer]
         add eax, ebx
-        mov [calculation_result_decimal_buffer], eax
-        jmp start_user_selected_operation___convert_and_print_result
+        mov [calculation_result_number_buffer], eax
+        jmp start_operation___convert_result_from_number_to_ascii
    
-    start_operation___subtraction:
-        mov eax, [user_num_1_decimal_buffer]
-        mov ebx, [user_num_2_decimal_buffer]
+    subtraction:
+        mov eax, [user_num_1_number_buffer]
+        mov ebx, [user_num_2_number_buffer]
         sub eax, ebx
-        mov [calculation_result_decimal_buffer], eax
-        jmp start_user_selected_operation___convert_and_print_result
+        mov [calculation_result_number_buffer], eax
+        jmp start_operation___convert_result_from_number_to_ascii
 
-    start_operation___multiplication:
-        jmp start_user_selected_operation___convert_and_print_result
+    multiplication:
+        mov eax, [user_num_1_number_buffer]
+        mov ebx, [user_num_2_number_buffer]
+        imul eax, ebx
+        mov [calculation_result_number_buffer], eax
+        jmp start_operation___convert_result_from_number_to_ascii
 
-    start_operation___division:
-        jmp start_user_selected_operation___convert_and_print_result
+    division:
+        division___get_result_sign:
+            division___get_result_sign___check_if_dividend_is_negative:
+                mov eax, [user_num_1_number_buffer]
+                test eax, eax
+                jns division___get_result_sign___check_if_divisor_is_negative
+                mov byte [division_is_negative_dividend], 1 ; Set flag to indicate negativity
 
-    start_user_selected_operation___convert_and_print_result:
-        ; Convert decimal result to ASCII
+            division___get_result_sign___check_if_divisor_is_negative:
+                mov eax, [user_num_2_number_buffer]
+                test eax, eax
+                jns division___get_result_sign___set_flag
+                mov byte [division_is_negative_divisor], 1 ; Set flag to indicate negativity
+
+            division___get_result_sign___set_flag:
+                mov eax, [division_is_negative_dividend]
+                mov ebx, [division_is_negative_divisor]
+                add eax, ebx
+                cmp eax, 1 ; If sum of flags is 1, then the final result will be negative
+                je division___get_result_sign___set_flag___set_negative
+                mov byte [division_is_negative_final_result], 0
+                jmp division___get_quotient_part
+
+                division___get_result_sign___set_flag___set_negative:
+                    mov byte [division_is_negative_final_result], 1
+
+        division___get_quotient_part:
+            xor edx, edx ; Prepare edx for division
+            mov eax, [user_num_1_number_buffer] ; Load dividend
+            mov ecx, [user_num_2_number_buffer] ; Load divisor
+            cmp ecx, 0 ; Prevent division by 0
+            je division___print_cant_divide_by_zero
+            ; Sign-extend eax into edx:eax if dividend is negative
+            test eax, eax 
+            jns division___get_quotient_part___divide
+            cdq
+
+            division___get_quotient_part___divide:
+                idiv ecx
+                mov [division_quotient_number_buffer], eax
+                push edx ; Save remainder on the stack
+
+            division___get_quotient_part___check_zero_quotient:
+                ; If quotient is zero and negative flag is set, then
+                ; append "-" and "0" to the quotient ASCII buffer. Otherwise
+                ; convert the quotient to ASCII straight away.
+                cmp eax, 0
+                jnz division___get_quotient_part___convert_to_ascii
+                mov eax, [division_is_negative_final_result]
+                cmp eax, 0
+                je division___get_quotient_part___convert_to_ascii
+                mov byte [division_quotient_ascii_buffer], "-"
+                mov byte [division_quotient_ascii_buffer + 1], "0"
+                jmp division___get_decimal_part
+
+            division___get_quotient_part___convert_to_ascii:
+                push division_quotient_ascii_buffer
+                push division_quotient_number_buffer
+                call convert_number_to_string
+                add esp, 8
+
+        division___get_decimal_part:
+            division___get_decimal_part___prepare_divisor:
+                ; Make sure the divisor is positive
+                mov ebx, [user_num_2_number_buffer]
+                test ebx, ebx
+                jns division___get_decimal_part___prepare_remainder
+                neg ebx
+                mov [user_num_2_number_buffer], ebx
+            
+            division___get_decimal_part___prepare_remainder:
+                ; Make sure the remainder is positive
+                pop edx ; Restore remainder from the stack
+                test edx, edx
+                jns division___get_decimal_part___calculate
+                neg edx
+
+            division___get_decimal_part___calculate:         
+                ; Initiate decimal part length counter
+                xor edi, edi
+                push edi
+                division___get_decimal_part___calculate___loop:
+                    ; Multiply remainder by 10
+                    mov eax, edx
+                    imul eax, 10
+
+                    ; Check for overflow. If it occured then it means the decimal 
+                    ; part is too small to be displayed.
+                    jo division___print_result_too_small_to_display
+
+                    ; Divide the scaled remainder by the original divisor
+                    xor edx, edx
+                    mov ebx, [user_num_2_number_buffer]
+                    idiv ebx
+
+                    ; Save remainder of division on the stack
+                    push edx
+
+                    ; Store quotient part in buffer
+                    mov [division_decimal_number_buffer], eax
+
+                    ; Convert quotient part to ASCII
+                    push division_decimal_temp_ascii_buffer
+                    push division_decimal_number_buffer
+                    call convert_number_to_string
+                    add esp, 8
+                    ; Clear division_decimal_number_buffer
+                    push NUMBER_BUFFER_LEN
+                    push division_decimal_number_buffer
+                    call clear_buffer
+                    add esp, 8
+
+                    ; Restore remainder and decimal part length from the stack
+                    pop edx
+                    pop edi
+
+                    ; Move the converted digit to the buffer that stores whole decimal part
+                    mov al, byte [division_decimal_temp_ascii_buffer]
+                    lea ecx, division_decimal_ascii_buffer
+                    mov [ecx + edi], al
+                    inc edi ; Increment the decimal part digit count
+                    push edi ; Save digit count on the stack
+
+                    ; Check if remainder is 0 (meaning decimal part calculation can stop)
+                    cmp edx, 0
+                    je division___concatenate_quotient_and_decimal_parts
+
+                    ; Check if we have reached the maximum wanted precision
+                    cmp edi, DIVISION_DECIMAL_PRECISION
+                    jl division___get_decimal_part___calculate___loop
+
+        division___concatenate_quotient_and_decimal_parts:
+            ; Copy quotient buffer content to calculation result buffer
+            xor edi, edi
+            push division_quotient_ascii_buffer
+            call count_string_length
+            mov ecx, edi
+            mov esi, division_quotient_ascii_buffer
+            mov edi, calculation_result_ascii_buffer
+            cld
+            rep movsb
+
+            ; Add decimal point and null terminator after the quotient in the calculation result buffer
+            xor edi, edi
+            push calculation_result_ascii_buffer
+            call count_string_length
+            mov esi, calculation_result_ascii_buffer
+            mov byte [esi + edi], "."
+            inc edi
+            mov byte [esi + edi], 0
+            
+            ; Set ebx to point to byte after "." in the calculation result buffer
+            lea ebx, calculation_result_ascii_buffer
+            add ebx, edi 
+
+            ; Copy decimal buffer content to calculation result buffer after the "."
+            xor edi, edi
+            push division_decimal_ascii_buffer
+            call count_string_length
+            mov ecx, edi
+            mov esi, division_decimal_ascii_buffer
+            mov edi, ebx
+            cld
+            rep movsb
+
+            ; Add new line feed and null terminator 
+            ; Makes separator print on a new line after printing the result
+            mov byte [edi], 0xa
+            mov byte [edi + 1], 0
+
+            jmp start_operation___print_calculation_result
+
+        division___print_cant_divide_by_zero:
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_CANT_DIVIDE_BY_ZERO
+            mov edx, MSG_LEN_CANT_DIVIDE_BY_ZERO
+            int 0x80
+            ; Separator
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_SEPARATOR
+            mov edx, MSG_LEN_SEPARATOR
+            int 0x80
+            jmp start_operation___clear_all_buffers
+
+        division___print_result_too_small_to_display:
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+            mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+            int 0x80
+            ; Separator
+            mov eax, SYS_WRITE
+            mov ebx, STDOUT
+            mov ecx, MSG_SEPARATOR
+            mov edx, MSG_LEN_SEPARATOR
+            int 0x80
+            jmp start_operation___clear_all_buffers
+
+    start_operation___convert_result_from_number_to_ascii:
         push calculation_result_ascii_buffer
-        push calculation_result_decimal_buffer
+        push calculation_result_number_buffer
         call convert_number_to_string
 
+    start_operation___print_calculation_result:
         ; Output 'Result: (string in result buffer)'
         mov eax, SYS_WRITE
         mov ebx, STDOUT
@@ -330,15 +546,17 @@ start_user_selected_operation:
         mov edx, MSG_LEN_SEPARATOR
         int 0x80
 
-    call clear_all_buffers
+    start_operation___clear_all_buffers:
+        call clear_all_buffers
 
     mov esp, ebp
     pop ebp
     ret
 
 convert_string_to_number:
+    ; Convert ASCII representation of a number into a literal number and store in buffer.
     ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
-    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in decimal.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number.
     push ebp
     mov ebp, esp
 
@@ -366,7 +584,7 @@ convert_string_to_number:
         jmp convert_string_to_number___loop
 
     convert_string_to_number___save_converted_number:
-        mov edx, [ebp + 12] ; Loading the decimal buffer address into edx
+        mov edx, [ebp + 12] ; Loading the number buffer address into edx
         test ecx, ecx; Check the number flag that was set at the start
         jz convert_string_to_number___store_value_into_buffer ; If zero (positive)
         neg ebx ; Negate the final number (if flag is non zero)
@@ -378,12 +596,13 @@ convert_string_to_number:
     ret
 
 convert_number_to_string:
-    ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in decimal.
-    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number in ASCII.
+    ; Convert a literal number to its ASCII representation and store in buffer.
+    ; Arg_1 (ebp+8) - address to buffer that holds the number to be converted.
+    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number.
     push ebp
     mov ebp, esp
 
-    mov ebx, [ebp + 8] ; Load decimal buffer containing number to be converted
+    mov ebx, [ebp + 8] ; Load number buffer address
     mov eax, [ebx] ; Load the literal value in the buffer into eax
 
     convert_number_to_string___check_if_number_is_negative:
@@ -397,17 +616,17 @@ convert_number_to_string:
         inc ebx ; Increment buffer pointer so it points to the second element (an empty space)
         mov [ebp + 12], ebx ; Overwrite the old buffer starting address with the new one
     
-    ; Convert from decimal to ASCII and push converted characters onto the stack.
+    ; Convert from number to ASCII and push converted characters onto the stack.
     convert_number_to_string___push_to_stack:
         mov edx, 0 ; Fill higher order bits
         mov ecx, 10 ; Divisor
-        div ecx
+        idiv ecx
         add edx, "0" ; Convert the remainder to ASCII
         push edx ; Push the converted character onto the stack
         test eax, eax ; If quotient is not 0, keep converting
         jne convert_number_to_string___push_to_stack
 
-    ; Pop characters from the stack into buffer that will contain converted number
+    ; Pop characters from the stack into buffer that will contain the converted number
     xor edi, edi ; Clear edi register
     convert_number_to_string___pop_from_stack:
         mov ebx, [ebp + 12] ; Load the address of the buffer
@@ -460,16 +679,39 @@ clear_all_buffers:
     push CALCULATION_RESULT_ASCII_BUFFER_LEN 
     push calculation_result_ascii_buffer
     call clear_buffer
+    push CALCULATION_RESULT_ASCII_BUFFER_LEN
+    push division_quotient_ascii_buffer
+    call clear_buffer
+    push CALCULATION_RESULT_ASCII_BUFFER_LEN
+    push division_decimal_ascii_buffer
+    call clear_buffer
 
-    ; Clear all decimal buffers
-    push DECIMAL_BUFFER_LEN
-    push user_num_1_decimal_buffer
+    ; Clear all number buffers
+    push NUMBER_BUFFER_LEN
+    push user_num_1_number_buffer
     call clear_buffer
-    push DECIMAL_BUFFER_LEN 
-    push user_num_2_decimal_buffer
+    push NUMBER_BUFFER_LEN 
+    push user_num_2_number_buffer
     call clear_buffer
-    push DECIMAL_BUFFER_LEN 
-    push calculation_result_decimal_buffer
+    push NUMBER_BUFFER_LEN 
+    push calculation_result_number_buffer
+    call clear_buffer
+    push NUMBER_BUFFER_LEN
+    push division_quotient_number_buffer
+    call clear_buffer
+    push NUMBER_BUFFER_LEN
+    push division_decimal_number_buffer
+    call clear_buffer
+
+    ; Clear division flag buffers
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_dividend
+    call clear_buffer
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_divisor
+    call clear_buffer
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_final_result
     call clear_buffer
 
     mov esp, ebp
@@ -487,13 +729,15 @@ count_string_length:
     
     count_string_length___loop:
         mov al, byte [esi + edi]
+        cmp al, 0
+        je count_string_length___return
         inc edi
-        cmp al, 0xa
         jne count_string_length___loop
 
-    mov esp, ebp
-    pop ebp
-    ret   
+    count_string_length___return:
+        mov esp, ebp
+        pop ebp
+        ret   
 
 print_title:
     push ebp
