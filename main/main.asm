@@ -64,13 +64,18 @@ section .text
     global _start
 
 _start:
+    call print_separator
     call print_title
 
     _start_main_loop:
+        call print_separator ; Separator
         call print_operation_options
+        call print_separator ; Separator
         call print_select_operation
         call read_user_operation_choice
+        call print_separator ; Separator
         call start_operation
+        call print_separator ; Separator
         call print_ask_if_user_wants_to_continue
         call read_user_continue_choice
         cmp eax, 1 ; eax stores user's choice (1 - yes, 0 - no)
@@ -257,13 +262,6 @@ start_operation:
     ; Start the operation selected by the user (e.g., addition, subtraction).
     push ebp
     mov ebp, esp
-
-    ; Separator
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_SEPARATOR
-    mov edx, MSG_LEN_SEPARATOR
-    int 0x80
 
     ; Output 'Enter first number: '
     mov eax, SYS_WRITE
@@ -499,12 +497,6 @@ start_operation:
             mov ecx, MSG_CANT_DIVIDE_BY_ZERO
             mov edx, MSG_LEN_CANT_DIVIDE_BY_ZERO
             int 0x80
-            ; Separator
-            mov eax, SYS_WRITE
-            mov ebx, STDOUT
-            mov ecx, MSG_SEPARATOR
-            mov edx, MSG_LEN_SEPARATOR
-            int 0x80
             jmp start_operation___clear_all_buffers
 
         division___print_result_too_small_to_display:
@@ -512,12 +504,6 @@ start_operation:
             mov ebx, STDOUT
             mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
             mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
-            int 0x80
-            ; Separator
-            mov eax, SYS_WRITE
-            mov ebx, STDOUT
-            mov ecx, MSG_SEPARATOR
-            mov edx, MSG_LEN_SEPARATOR
             int 0x80
             jmp start_operation___clear_all_buffers
 
@@ -537,13 +523,6 @@ start_operation:
         mov ebx, STDOUT
         mov ecx, calculation_result_ascii_buffer
         mov edx, CALCULATION_RESULT_ASCII_BUFFER_LEN
-        int 0x80
-
-        ; Separator
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_SEPARATOR
-        mov edx, MSG_LEN_SEPARATOR
         int 0x80
 
     start_operation___clear_all_buffers:
@@ -743,13 +722,6 @@ print_title:
     push ebp
     mov ebp, esp
 
-    ; Separator
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_SEPARATOR
-    mov edx, MSG_LEN_SEPARATOR
-    int 0x80
-
     mov eax, SYS_WRITE
     mov ebx, STDOUT
     mov ecx, MSG_TITLE
@@ -763,13 +735,6 @@ print_title:
 print_operation_options:
     push ebp
     mov ebp, esp
-
-    ; Separator
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_SEPARATOR
-    mov edx, MSG_LEN_SEPARATOR
-    int 0x80
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
@@ -793,13 +758,6 @@ print_operation_options:
     mov ebx, STDOUT
     mov ecx, MSG_OP_DIVISION
     mov edx, MSG_LEN_OP_DIVISION
-    int 0x80
-
-    ; Separator
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_SEPARATOR
-    mov edx, MSG_LEN_SEPARATOR
     int 0x80
 
     mov esp, ebp
@@ -828,6 +786,20 @@ print_ask_if_user_wants_to_continue:
     mov ebx, STDOUT
     mov ecx, MSG_PERFORM_ANOTHER_OPERATION
     mov edx, MSG_LEN_PERFORM_ANOTHER_OPERATION
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print_separator:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_SEPARATOR
+    mov edx, MSG_LEN_SEPARATOR
     int 0x80
 
     mov esp, ebp
