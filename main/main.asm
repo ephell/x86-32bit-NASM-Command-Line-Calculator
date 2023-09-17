@@ -1,5 +1,3 @@
-%include "print.asm"
-
 SYS_EXIT equ 1
 SYS_READ equ 3
 SYS_WRITE equ 4
@@ -47,21 +45,30 @@ section .bss
 
 section .text
     global _start
+    extern print___separator
+    extern print___title
+    extern print___operation_options
+    extern print___select_operation
+    extern print___ask_if_user_wants_to_continue
+    extern utility___count_string_length
+    extern utility___convert_str_to_num
+    extern utility___convert_num_to_str
+    extern utility___clear_buffer
 
 _start:
-    call print_separator
-    call print_title
+    call print___separator
+    call print___title
 
     _start_main_loop:
-        call print_separator ; Separator
-        call print_operation_options
-        call print_separator ; Separator
-        call print_select_operation
+        call print___separator ; Separator
+        call print___operation_options
+        call print___separator ; Separator
+        call print___select_operation
         call read_user_operation_choice
-        call print_separator ; Separator
+        call print___separator ; Separator
         call start_operation
-        call print_separator ; Separator
-        call print_ask_if_user_wants_to_continue
+        call print___separator ; Separator
+        call print___ask_if_user_wants_to_continue
         call read_user_continue_choice
         cmp eax, 1 ; eax stores user's choice (1 - yes, 0 - no)
         je _start_main_loop
@@ -86,7 +93,7 @@ read_user_operation_choice:
     read_user_operation_choice___validate_input:
         xor edi, edi
         push esi
-        call count_string_length
+        call utility___count_string_length
         ; Reject input if it is empty (only a newline character)
         cmp edi, 1 
         je read_user_operation_choice___reject_input
@@ -111,7 +118,7 @@ read_user_operation_choice:
         ; Clear buffer before reading input again
         push USER_CHOICE_ASCII_BUFFER_LEN
         push user_choice_ascii_buffer
-        call clear_buffer
+        call utility___clear_buffer
         jmp read_user_operation_choice___read_input
 
     read_user_operation_choice___return:
@@ -138,7 +145,7 @@ read_user_continue_choice:
     read_user_continue_choice___validate_input:
         xor edi, edi
         push esi
-        call count_string_length
+        call utility___count_string_length
         ; Reject input if it is empty (only a newline character)
         cmp edi, 1 
         je read_user_continue_choice___reject_input
@@ -177,7 +184,7 @@ read_user_continue_choice:
         ; Clear buffer before reading input again
         push USER_CHOICE_ASCII_BUFFER_LEN
         push user_choice_ascii_buffer
-        call clear_buffer
+        call utility___clear_buffer
         jmp read_user_continue_choice___read_input
 
     read_user_continue_choice___return:
@@ -237,7 +244,7 @@ read_number:
     read_number___convert_from_ascii_to_number:
         push dword [ebp + 12] ; Pushing the number buffer
         push dword [ebp + 8] ; Pushing the ASCII buffer
-        call convert_string_to_number
+        call utility___convert_str_to_num
 
     mov esp, ebp
     pop ebp
@@ -362,7 +369,7 @@ start_operation:
             division___get_quotient_part___convert_to_ascii:
                 push division_quotient_ascii_buffer
                 push division_quotient_number_buffer
-                call convert_number_to_string
+                call utility___convert_num_to_str
                 add esp, 8
 
         division___get_decimal_part:
@@ -408,12 +415,12 @@ start_operation:
                     ; Convert quotient part to ASCII
                     push division_decimal_temp_ascii_buffer
                     push division_decimal_number_buffer
-                    call convert_number_to_string
+                    call utility___convert_num_to_str
                     add esp, 8
                     ; Clear division_decimal_number_buffer
                     push NUMBER_BUFFER_LEN
                     push division_decimal_number_buffer
-                    call clear_buffer
+                    call utility___clear_buffer
                     add esp, 8
 
                     ; Restore remainder and decimal part length from the stack
@@ -439,7 +446,7 @@ start_operation:
             ; Copy quotient buffer content to calculation result buffer
             xor edi, edi
             push division_quotient_ascii_buffer
-            call count_string_length
+            call utility___count_string_length
             mov ecx, edi
             mov esi, division_quotient_ascii_buffer
             mov edi, calculation_result_ascii_buffer
@@ -449,7 +456,7 @@ start_operation:
             ; Add decimal point and null terminator after the quotient in the calculation result buffer
             xor edi, edi
             push calculation_result_ascii_buffer
-            call count_string_length
+            call utility___count_string_length
             mov esi, calculation_result_ascii_buffer
             mov byte [esi + edi], "."
             inc edi
@@ -462,7 +469,7 @@ start_operation:
             ; Copy decimal buffer content to calculation result buffer after the "."
             xor edi, edi
             push division_decimal_ascii_buffer
-            call count_string_length
+            call utility___count_string_length
             mov ecx, edi
             mov esi, division_decimal_ascii_buffer
             mov edi, ebx
@@ -495,7 +502,7 @@ start_operation:
     start_operation___convert_result_from_number_to_ascii:
         push calculation_result_ascii_buffer
         push calculation_result_number_buffer
-        call convert_number_to_string
+        call utility___convert_num_to_str
 
     start_operation___print_calculation_result:
         ; Output 'Result: (string in result buffer)'
@@ -517,115 +524,6 @@ start_operation:
     pop ebp
     ret
 
-convert_string_to_number:
-    ; Convert ASCII representation of a number into a literal number and store in buffer.
-    ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
-    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number.
-    push ebp
-    mov ebp, esp
-
-    mov esi, [ebp + 8] ; Load ASCII buffer address from the stack
-
-    ; Clear registers
-    xor ebx, ebx ; Clear ebx (used during conversion to store final number value)
-    xor ecx, ecx ; Clear ecx (used for storing a flag to indicate whether the number is negative or not)
-
-    ; Check if the string in ASCII buffer starts with a '-' (negative number)
-    movzx eax, byte [esi] ; Load first char from buffer
-    cmp al, "-" ; Check if the character is a dash
-    jne convert_string_to_number___loop ; Jump to the conversion loop if it's not a dash
-    inc esi ; If it's a dash, move the buffer pointer to the second character
-    mov ecx, 1 ; Set a flag to indicate whether the number is negative or not (1 if negative, 0 if positive)
-
-    convert_string_to_number___loop:
-        movzx eax, byte [esi] ; Load next character from buffer
-        inc esi
-        cmp al, 0x0a ; Check if loaded byte is a new line character
-        je convert_string_to_number___save_converted_number
-        sub al, '0'; Convert from ASCII to number
-        imul ebx, 10 ; Multiply ebx by 10
-        add ebx, eax ; ebx = ebx * 10 + eax
-        jmp convert_string_to_number___loop
-
-    convert_string_to_number___save_converted_number:
-        mov edx, [ebp + 12] ; Loading the number buffer address into edx
-        test ecx, ecx; Check the number flag that was set at the start
-        jz convert_string_to_number___store_value_into_buffer ; If zero (positive)
-        neg ebx ; Negate the final number (if flag is non zero)
-        convert_string_to_number___store_value_into_buffer:
-            mov [edx], ebx
-        
-    mov esp, ebp
-    pop ebp
-    ret
-
-convert_number_to_string:
-    ; Convert a literal number to its ASCII representation and store in buffer.
-    ; Arg_1 (ebp+8) - address to buffer that holds the number to be converted.
-    ; Arg_2 (ebp+12) - address to buffer that will hold the converted number.
-    push ebp
-    mov ebp, esp
-
-    mov ebx, [ebp + 8] ; Load number buffer address
-    mov eax, [ebx] ; Load the literal value in the buffer into eax
-
-    convert_number_to_string___check_if_number_is_negative:
-        cmp eax, 0
-        jge convert_number_to_string___push_to_stack ; Jump if value is non-negative
-
-        ; If the value in buffer is negative
-        neg eax ; Convert the value to positive
-        mov ebx, [ebp + 12] ; Load the starting address of the ASCII buffer
-        mov [ebx], byte "-" ; Add '-' to the first element of the buffer
-        inc ebx ; Increment buffer pointer so it points to the second element (an empty space)
-        mov [ebp + 12], ebx ; Overwrite the old buffer starting address with the new one
-    
-    ; Convert from number to ASCII and push converted characters onto the stack.
-    convert_number_to_string___push_to_stack:
-        mov edx, 0 ; Fill higher order bits
-        mov ecx, 10 ; Divisor
-        idiv ecx
-        add edx, "0" ; Convert the remainder to ASCII
-        push edx ; Push the converted character onto the stack
-        test eax, eax ; If quotient is not 0, keep converting
-        jne convert_number_to_string___push_to_stack
-
-    ; Pop characters from the stack into buffer that will contain the converted number
-    xor edi, edi ; Clear edi register
-    convert_number_to_string___pop_from_stack:
-        mov ebx, [ebp + 12] ; Load the address of the buffer
-        pop dword [ebx + edi] ; Pop character from stack
-        inc edi
-        cmp esp, ebp ; If pointing to the same address then there are no more chars
-        jne convert_number_to_string___pop_from_stack
-        ; Add null terminator and new line feed
-        mov byte [ebx + edi], 0
-        mov byte [ebx + edi + 1], 0xa
-
-    mov esp, ebp
-    pop ebp
-    ret
-
-clear_buffer:
-    ; Set all bytes to 0 in buffer.
-    ; Arg_1 (ebp+8) - address of the buffer to clear.
-    ; Arg_2 (ebp+12) - length of the buffer.
-    push ebp
-    mov ebp, esp
-
-    mov esi, [ebp + 8] ; Load the buffer to clear
-    mov ecx, [ebp + 12] ; Load the length of the buffer
-    xor eax, eax ; Set eax to 0 (the value to clear the buffer with)
-
-    clear_buffer___loop:
-        mov [esi], al ; Set the current byte in the buffer to 0
-        inc esi ; Move to the next byte
-        loop clear_buffer___loop ; Continue until ecx reaches 0
-
-    mov esp, ebp
-    pop ebp
-    ret
-
 clear_all_buffers:
     push ebp
     mov ebp, esp
@@ -633,72 +531,51 @@ clear_all_buffers:
     ; Clear all ASCII buffers
     push USER_CHOICE_ASCII_BUFFER_LEN
     push user_choice_ascii_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push USER_NUM_ASCII_BUFFER_LEN 
     push user_num_1_ascii_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push USER_NUM_ASCII_BUFFER_LEN 
     push user_num_2_ascii_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push CALCULATION_RESULT_ASCII_BUFFER_LEN 
     push calculation_result_ascii_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push CALCULATION_RESULT_ASCII_BUFFER_LEN
     push division_quotient_ascii_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push CALCULATION_RESULT_ASCII_BUFFER_LEN
     push division_decimal_ascii_buffer
-    call clear_buffer
+    call utility___clear_buffer
 
     ; Clear all number buffers
     push NUMBER_BUFFER_LEN
     push user_num_1_number_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push NUMBER_BUFFER_LEN 
     push user_num_2_number_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push NUMBER_BUFFER_LEN 
     push calculation_result_number_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push NUMBER_BUFFER_LEN
     push division_quotient_number_buffer
-    call clear_buffer
+    call utility___clear_buffer
     push NUMBER_BUFFER_LEN
     push division_decimal_number_buffer
-    call clear_buffer
+    call utility___clear_buffer
 
     ; Clear division flag buffers
     push DIVISION_SIGN_FLAG_BUFFER_LEN
     push division_is_negative_dividend
-    call clear_buffer
+    call utility___clear_buffer
     push DIVISION_SIGN_FLAG_BUFFER_LEN
     push division_is_negative_divisor
-    call clear_buffer
+    call utility___clear_buffer
     push DIVISION_SIGN_FLAG_BUFFER_LEN
     push division_is_negative_final_result
-    call clear_buffer
+    call utility___clear_buffer
 
     mov esp, ebp
     pop ebp
     ret
-
-count_string_length:
-    ; Counts length of string stored in a buffer. Value is saved in edi register. Includes the null terminator.
-    ; Arg_1 (ebp+8) - buffer that holds the string.
-    push ebp
-    mov ebp, esp
-
-    xor edi, edi
-    mov esi, [ebp + 8]
-    
-    count_string_length___loop:
-        mov al, byte [esi + edi]
-        cmp al, 0
-        je count_string_length___return
-        inc edi
-        jne count_string_length___loop
-
-    count_string_length___return:
-        mov esp, ebp
-        pop ebp
-        ret   

@@ -1,7 +1,7 @@
-SYS_EXIT equ 1
-SYS_READ equ 3
+; 'print.asm'
+; Contains various functions for printing messages to the console.
+
 SYS_WRITE equ 4
-STDIN equ 0
 STDOUT equ 1
 
 section .data
@@ -22,7 +22,14 @@ section .data
     MSG_PERFORM_ANOTHER_OPERATION db "Would you like to perform another operation? (y/n): "
     MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
 
-print_separator:
+section .text
+    global print___separator
+    global print___title
+    global print___operation_options
+    global print___select_operation
+    global print___ask_if_user_wants_to_continue
+
+print___separator:
     push ebp
     mov ebp, esp
 
@@ -36,7 +43,7 @@ print_separator:
     pop ebp
     ret
 
-print_title:
+print___title:
     push ebp
     mov ebp, esp
 
@@ -50,7 +57,7 @@ print_title:
     pop ebp
     ret
 
-print_operation_options:
+print___operation_options:
     push ebp
     mov ebp, esp
 
@@ -82,7 +89,7 @@ print_operation_options:
     pop ebp
     ret
 
-print_select_operation:
+print___select_operation:
     push ebp
     mov ebp, esp
 
@@ -96,7 +103,7 @@ print_select_operation:
     pop ebp
     ret
 
-print_ask_if_user_wants_to_continue:
+print___ask_if_user_wants_to_continue:
     push ebp
     mov ebp, esp
 
