@@ -38,8 +38,10 @@ section .data
     USER_CHOICE_ASCII_BUFFER_LEN equ 255
     USER_NUM_ASCII_BUFFER_LEN equ 255
     CALCULATION_RESULT_ASCII_BUFFER_LEN equ 255
-    NUMBER_BUFFER_LEN equ 8 ; 32bit number
+    NUMBER_BUFFER_LEN equ 8
     DIVISION_DECIMAL_PRECISION equ 10
+    DIVISION_SIGN_FLAG_BUFFER_LEN equ 8
+
 
 section .bss
     user_choice_ascii_buffer resb USER_CHOICE_ASCII_BUFFER_LEN
@@ -53,7 +55,10 @@ section .bss
     division_quotient_number_buffer resd NUMBER_BUFFER_LEN
     division_decimal_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
     division_decimal_number_buffer resd NUMBER_BUFFER_LEN
-    division_decimal_temp_ascii_buffer resb 1 ; Used when calculating decimal part of division
+    division_decimal_temp_ascii_buffer resb 1
+    division_is_negative_dividend resd DIVISION_SIGN_FLAG_BUFFER_LEN
+    division_is_negative_divisor resd DIVISION_SIGN_FLAG_BUFFER_LEN
+    division_is_negative_final_result resd DIVISION_SIGN_FLAG_BUFFER_LEN
 
 section .text
     global _start
@@ -317,21 +322,61 @@ start_operation:
         jmp start_operation___convert_result_from_number_to_ascii
 
     division:
-        xor edx, edx ; Prepare edx for division by clearing it
+        division___get_result_sign:
+            division___get_result_sign___check_if_dividend_is_negative:
+                mov eax, [user_num_1_number_buffer]
+                test eax, eax
+                jns division___get_result_sign___check_if_divisor_is_negative
+                mov byte [division_is_negative_dividend], 1 ; Set flag to indicate negativity
+
+            division___get_result_sign___check_if_divisor_is_negative:
+                mov eax, [user_num_2_number_buffer]
+                test eax, eax
+                jns division___get_result_sign___set_flag
+                mov byte [division_is_negative_divisor], 1 ; Set flag to indicate negativity
+
+            division___get_result_sign___set_flag:
+                mov eax, [division_is_negative_dividend]
+                mov ebx, [division_is_negative_divisor]
+                add eax, ebx
+                cmp eax, 1 ; If sum of flags is 1, then the final result will be negative
+                je division___get_result_sign___set_flag___set_negative
+                mov byte [division_is_negative_final_result], 0
+                jmp division___get_quotient_part
+
+                division___get_result_sign___set_flag___set_negative:
+                    mov byte [division_is_negative_final_result], 1
+
         division___get_quotient_part:
+            xor edx, edx ; Prepare edx for division
             mov eax, [user_num_1_number_buffer] ; Load dividend
             mov ecx, [user_num_2_number_buffer] ; Load divisor
             cmp ecx, 0 ; Prevent division by 0
             je division___print_cant_divide_by_zero
-            test eax, eax ; Check if dividend is positive/negative
+            ; Sign-extend eax into edx:eax if dividend is negative
+            test eax, eax 
             jns division___get_quotient_part___divide
-            cdq ; Sign-extend eax into edx:eax if dividend is negative
+            cdq
 
             division___get_quotient_part___divide:
                 idiv ecx
                 mov [division_quotient_number_buffer], eax
                 push edx ; Save remainder on the stack
-                ; Convert quotient part to ASCII
+
+            division___get_quotient_part___check_zero_quotient:
+                ; If quotient is zero and negative flag is set, then
+                ; append "-" and "0" to the quotient ASCII buffer. Otherwise
+                ; convert the quotient to ASCII straight away.
+                cmp eax, 0
+                jnz division___get_quotient_part___convert_to_ascii
+                mov eax, [division_is_negative_final_result]
+                cmp eax, 0
+                je division___get_quotient_part___convert_to_ascii
+                mov byte [division_quotient_ascii_buffer], "-"
+                mov byte [division_quotient_ascii_buffer + 1], "0"
+                jmp division___get_decimal_part
+
+            division___get_quotient_part___convert_to_ascii:
                 push division_quotient_ascii_buffer
                 push division_quotient_number_buffer
                 call convert_number_to_string
@@ -656,6 +701,17 @@ clear_all_buffers:
     call clear_buffer
     push NUMBER_BUFFER_LEN
     push division_decimal_number_buffer
+    call clear_buffer
+
+    ; Clear division flag buffers
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_dividend
+    call clear_buffer
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_divisor
+    call clear_buffer
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_final_result
     call clear_buffer
 
     mov esp, ebp
