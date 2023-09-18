@@ -21,6 +21,7 @@ section .data
     DIVISION_QUOTIENT_NUMBER_BUFFER_LEN equ 32
     DIVISION_DECIMAL_ASCII_BUFFER_LEN equ 255
     DIVISION_DECIMAL_NUMBER_BUFFER_LEN equ 32
+    DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN equ 1
     DIVISION_SIGN_FLAG_BUFFER_LEN equ 32
     DIVISION_DECIMAL_PRECISION equ 10
 
@@ -31,7 +32,7 @@ section .bss
     division_quotient_number_buffer resb DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
     division_decimal_ascii_buffer resb DIVISION_DECIMAL_ASCII_BUFFER_LEN
     division_decimal_number_buffer resb DIVISION_DECIMAL_NUMBER_BUFFER_LEN
-    division_decimal_temp_ascii_buffer resb 1
+    division_decimal_temp_ascii_buffer resb DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
     division_is_negative_dividend_buffer resb DIVISION_SIGN_FLAG_BUFFER_LEN
     division_is_negative_divisor_buffer resb DIVISION_SIGN_FLAG_BUFFER_LEN
     division_is_negative_final_result_buffer resb DIVISION_SIGN_FLAG_BUFFER_LEN
@@ -75,6 +76,7 @@ section .text
     global DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
     global DIVISION_DECIMAL_ASCII_BUFFER_LEN
     global DIVISION_DECIMAL_NUMBER_BUFFER_LEN
+    global DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
     global DIVISION_SIGN_FLAG_BUFFER_LEN
 
 operation___start_operation:

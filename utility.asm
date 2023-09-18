@@ -33,6 +33,7 @@ section .text
     extern DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
     extern DIVISION_DECIMAL_ASCII_BUFFER_LEN
     extern DIVISION_DECIMAL_NUMBER_BUFFER_LEN
+    extern DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
     extern DIVISION_SIGN_FLAG_BUFFER_LEN
     ; --------------------------------------
     ; Exports
@@ -199,6 +200,9 @@ utility___clear_all_buffers:
     call utility___clear_buffer
     push DIVISION_DECIMAL_ASCII_BUFFER_LEN
     push division_decimal_ascii_buffer
+    call utility___clear_buffer
+    push DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
+    push division_decimal_temp_ascii_buffer
     call utility___clear_buffer
 
     ; Clear all number buffers
