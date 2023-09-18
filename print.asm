@@ -23,6 +23,10 @@ section .data
     MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
 
 section .text
+    ; --------------------------------------
+    ; Exports
+    ; --------------------------------------
+    ; Functions
     global print___separator
     global print___title
     global print___operation_options

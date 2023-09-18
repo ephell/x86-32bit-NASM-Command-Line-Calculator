@@ -16,7 +16,7 @@ section .data
     INPUT___OPERAND_NUMBER_BUFFER_LEN equ 32
 
 section .bss
-    input___operation_choice_buffer resb INPUT___OPERATION_CHOICE_BUFFER_LEN
+    input___operation_choice_ascii_buffer resb INPUT___OPERATION_CHOICE_BUFFER_LEN
     input___continue_choice_ascii_buffer resb INPUT___CONTINUE_CHOICE_BUFFER_LEN
     input___operand_1_ascii_buffer resb INPUT___OPERAND_ASCII_BUFFER_LEN 
     input___operand_1_number_buffer resb INPUT___OPERAND_NUMBER_BUFFER_LEN
@@ -39,7 +39,7 @@ section .text
     global input___read_continue_choice
     global input___read_number
     ; Buffers
-    global input___operation_choice_buffer
+    global input___operation_choice_ascii_buffer
     global input___continue_choice_ascii_buffer
     global input___operand_1_ascii_buffer
     global input___operand_1_number_buffer
@@ -57,7 +57,7 @@ input___read_operation_choice:
     mov ebp, esp
 
     input___read_operation_choice___read_input:
-        mov esi, input___operation_choice_buffer ; Load buffer address
+        mov esi, input___operation_choice_ascii_buffer ; Load buffer address
         mov eax, SYS_READ
         mov ebx, STDIN
         mov ecx, esi
@@ -91,7 +91,7 @@ input___read_operation_choice:
         int 0x80
         ; Clear buffer before reading input again
         push INPUT___OPERATION_CHOICE_BUFFER_LEN
-        push input___operation_choice_buffer
+        push input___operation_choice_ascii_buffer
         call utility___clear_buffer
         jmp input___read_operation_choice___read_input
 
@@ -106,14 +106,13 @@ input___read_continue_choice:
     push ebp
     mov ebp, esp
 
-    mov esi, input___continue_choice_ascii_buffer ; Load buffer address
-
     input___read_continue_choice___read_input:
+        mov esi, input___continue_choice_ascii_buffer ; Load buffer address
         ; Read stdin buffer
         mov eax, SYS_READ
         mov ebx, STDIN
         mov ecx, esi
-        mov edx, INPUT___OPERATION_CHOICE_BUFFER_LEN
+        mov edx, INPUT___CONTINUE_CHOICE_BUFFER_LEN
         int 0x80
 
     input___read_continue_choice___validate_input:
@@ -141,7 +140,7 @@ input___read_continue_choice:
 
     input___read_continue_choice___y_selected:
         ; Clear buffer before setting the flag (1 - continue)
-        push INPUT___OPERATION_CHOICE_BUFFER_LEN
+        push INPUT___CONTINUE_CHOICE_BUFFER_LEN
         push input___continue_choice_ascii_buffer
         call utility___clear_buffer
         ; Set flag
@@ -150,7 +149,7 @@ input___read_continue_choice:
 
     input___read_continue_choice___n_selected:
         ; Clear buffer before setting the flag (0 - do not continue)
-        push INPUT___OPERATION_CHOICE_BUFFER_LEN
+        push INPUT___CONTINUE_CHOICE_BUFFER_LEN
         push input___continue_choice_ascii_buffer
         call utility___clear_buffer
         ; Set flag
@@ -164,7 +163,7 @@ input___read_continue_choice:
         mov edx, MSG_LEN_INVALID_CHOICE
         int 0x80
         ; Clear buffer before reading input again
-        push INPUT___OPERATION_CHOICE_BUFFER_LEN
+        push INPUT___CONTINUE_CHOICE_BUFFER_LEN
         push input___continue_choice_ascii_buffer
         call utility___clear_buffer
         jmp input___read_continue_choice___read_input

@@ -2,10 +2,47 @@
 ; Contains various utility functions.
 
 section .text
+    ; --------------------------------------
+    ; Imports
+    ; --------------------------------------
+    ; Buffers
+    extern input___operation_choice_ascii_buffer
+    extern input___continue_choice_ascii_buffer
+    extern input___operand_1_ascii_buffer
+    extern input___operand_1_number_buffer
+    extern input___operand_2_ascii_buffer
+    extern input___operand_2_number_buffer
+    extern calculation_result_ascii_buffer
+    extern calculation_result_number_buffer
+    extern division_quotient_ascii_buffer
+    extern division_quotient_number_buffer
+    extern division_decimal_ascii_buffer
+    extern division_decimal_number_buffer
+    extern division_decimal_temp_ascii_buffer
+    extern division_is_negative_dividend_buffer
+    extern division_is_negative_divisor_buffer
+    extern division_is_negative_final_result_buffer
+    ; Constants
+    extern INPUT___OPERATION_CHOICE_BUFFER_LEN
+    extern INPUT___CONTINUE_CHOICE_BUFFER_LEN
+    extern INPUT___OPERAND_ASCII_BUFFER_LEN
+    extern INPUT___OPERAND_NUMBER_BUFFER_LEN
+    extern CALCULATION_RESULT_ASCII_BUFFER_LEN
+    extern CALCULATION_RESULT_NUMBER_BUFFER_LEN
+    extern DIVISION_QUOTIENT_ASCII_BUFFER_LEN
+    extern DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
+    extern DIVISION_DECIMAL_ASCII_BUFFER_LEN
+    extern DIVISION_DECIMAL_NUMBER_BUFFER_LEN
+    extern DIVISION_SIGN_FLAG_BUFFER_LEN
+    ; --------------------------------------
+    ; Exports
+    ; --------------------------------------
+    ; Functions
     global utility___count_string_length
     global utility___convert_str_to_num
     global utility___convert_num_to_str
     global utility___clear_buffer
+    global utility___clear_all_buffers
 
 utility___count_string_length:
     ; Counts length of string stored in a buffer. Value is saved in edi register. Includes the null terminator.
@@ -132,6 +169,65 @@ utility___clear_buffer:
         mov [esi], al ; Set the current byte in the buffer to 0
         inc esi ; Move to the next byte
         loop utility___clear_buffer___loop ; Continue until ecx reaches 0
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+utility___clear_all_buffers:
+    push ebp
+    mov ebp, esp
+
+    ; Clear all ASCII buffers
+    push INPUT___OPERATION_CHOICE_BUFFER_LEN
+    push input___operation_choice_ascii_buffer
+    call utility___clear_buffer
+    push INPUT___CONTINUE_CHOICE_BUFFER_LEN
+    push input___continue_choice_ascii_buffer
+    call utility___clear_buffer
+    push INPUT___OPERAND_ASCII_BUFFER_LEN 
+    push input___operand_1_ascii_buffer
+    call utility___clear_buffer
+    push INPUT___OPERAND_ASCII_BUFFER_LEN 
+    push input___operand_2_ascii_buffer
+    call utility___clear_buffer
+    push CALCULATION_RESULT_ASCII_BUFFER_LEN 
+    push calculation_result_ascii_buffer
+    call utility___clear_buffer
+    push DIVISION_QUOTIENT_ASCII_BUFFER_LEN
+    push division_quotient_ascii_buffer
+    call utility___clear_buffer
+    push DIVISION_DECIMAL_ASCII_BUFFER_LEN
+    push division_decimal_ascii_buffer
+    call utility___clear_buffer
+
+    ; Clear all number buffers
+    push INPUT___OPERAND_NUMBER_BUFFER_LEN
+    push input___operand_1_number_buffer
+    call utility___clear_buffer
+    push INPUT___OPERAND_NUMBER_BUFFER_LEN 
+    push input___operand_2_number_buffer
+    call utility___clear_buffer
+    push CALCULATION_RESULT_NUMBER_BUFFER_LEN 
+    push calculation_result_number_buffer
+    call utility___clear_buffer
+    push DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
+    push division_quotient_number_buffer
+    call utility___clear_buffer
+    push DIVISION_DECIMAL_NUMBER_BUFFER_LEN
+    push division_decimal_number_buffer
+    call utility___clear_buffer
+
+    ; Clear division flag buffers
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_dividend_buffer
+    call utility___clear_buffer
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_divisor_buffer
+    call utility___clear_buffer
+    push DIVISION_SIGN_FLAG_BUFFER_LEN
+    push division_is_negative_final_result_buffer
+    call utility___clear_buffer
 
     mov esp, ebp
     pop ebp

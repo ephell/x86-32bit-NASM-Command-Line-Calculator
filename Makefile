@@ -1,6 +1,6 @@
 APP = main
 # Add additional source files separated by spaces
-ADDITIONAL_SRCS = print.asm utility.asm input.asm
+ADDITIONAL_SRCS = print.asm utility.asm input.asm operation.asm
 ADDITIONAL_OBJS = $(patsubst %.asm,%.o,$(ADDITIONAL_SRCS))
 
 .PHONY: all clean
