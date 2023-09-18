@@ -1,7 +1,5 @@
 SYS_EXIT equ 1
-SYS_READ equ 3
 SYS_WRITE equ 4
-STDIN equ 0
 STDOUT equ 1
 
 section .data
@@ -72,6 +70,7 @@ _start:
     call print___title
 
     _start_main_loop:
+        call clear_all_buffers
         call print___separator ; Separator
         call print___operation_options
         call print___separator ; Separator
@@ -86,7 +85,7 @@ _start:
         cmp al, "1" ; 1 - continue, 0 - exit
         je _start_main_loop
 
-    mov eax, 1
+    mov eax, SYS_EXIT
     mov ebx, 0
     int 0x80
 
@@ -329,7 +328,7 @@ start_operation:
             mov ecx, MSG_CANT_DIVIDE_BY_ZERO
             mov edx, MSG_LEN_CANT_DIVIDE_BY_ZERO
             int 0x80
-            jmp start_operation___clear_all_buffers
+            jmp start_operation___return
 
         division___print_result_too_small_to_display:
             mov eax, SYS_WRITE
@@ -337,7 +336,7 @@ start_operation:
             mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
             mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
             int 0x80
-            jmp start_operation___clear_all_buffers
+            jmp start_operation___return
 
     start_operation___convert_result_from_number_to_ascii:
         push calculation_result_ascii_buffer
@@ -357,12 +356,10 @@ start_operation:
         mov edx, CALCULATION_RESULT_ASCII_BUFFER_LEN
         int 0x80
 
-    start_operation___clear_all_buffers:
-        call clear_all_buffers
-
-    mov esp, ebp
-    pop ebp
-    ret
+    start_operation___return:
+        mov esp, ebp
+        pop ebp
+        ret
 
 clear_all_buffers:
     push ebp
