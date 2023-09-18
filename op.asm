@@ -1,4 +1,6 @@
-SYS_EXIT equ 1
+; 'op.asm'
+; Contains logic for performing arithmetic operations on numbers.
+
 SYS_WRITE equ 4
 STDOUT equ 1
 
@@ -15,27 +17,27 @@ section .data
     MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED db "Result is too small to be displayed!", 0xa
     MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED equ $ - MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
     ; Constants
-    CALCULATION_RESULT_ASCII_BUFFER_LEN equ 255
-    CALCULATION_RESULT_NUMBER_BUFFER_LEN equ 32
-    DIVISION_QUOTIENT_ASCII_BUFFER_LEN equ 255
-    DIVISION_QUOTIENT_NUMBER_BUFFER_LEN equ 32
-    DIVISION_DECIMAL_ASCII_BUFFER_LEN equ 255
-    DIVISION_DECIMAL_NUMBER_BUFFER_LEN equ 32
-    DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN equ 1
-    DIVISION_SIGN_FLAG_BUFFER_LEN equ 32
-    DIVISION_DECIMAL_PRECISION equ 10
+    OP___RESULT___ASCII_BUFFER_LEN equ 255
+    OP___RESULT___NUMBER_BUFFER_LEN equ 32
+    OP___DIV___QUOTIENT_ASCII_BUFFER_LEN equ 255
+    OP___DIV___QUOTIENT_NUMBER_BUFFER_LEN equ 32
+    OP___DIV___DECIMAL_ASCII_BUFFER_LEN equ 255
+    OP___DIV___DECIMAL_NUMBER_BUFFER_LEN equ 32
+    OP___DIV___DECIMAL_TEMP_ASCII_BUFFER_LEN equ 1
+    OP___DIV___SIGN_FLAG_BUFFER_LEN equ 32
+    OP___DIV___DECIMAL_PRECISION equ 10
 
 section .bss
-    calculation_result_ascii_buffer resb CALCULATION_RESULT_ASCII_BUFFER_LEN
-    calculation_result_number_buffer resb CALCULATION_RESULT_NUMBER_BUFFER_LEN
-    division_quotient_ascii_buffer resb DIVISION_QUOTIENT_ASCII_BUFFER_LEN
-    division_quotient_number_buffer resb DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
-    division_decimal_ascii_buffer resb DIVISION_DECIMAL_ASCII_BUFFER_LEN
-    division_decimal_number_buffer resb DIVISION_DECIMAL_NUMBER_BUFFER_LEN
-    division_decimal_temp_ascii_buffer resb DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
-    division_is_negative_dividend_buffer resb DIVISION_SIGN_FLAG_BUFFER_LEN
-    division_is_negative_divisor_buffer resb DIVISION_SIGN_FLAG_BUFFER_LEN
-    division_is_negative_final_result_buffer resb DIVISION_SIGN_FLAG_BUFFER_LEN
+    op___result___ascii_buffer resb OP___RESULT___ASCII_BUFFER_LEN
+    op___result___number_buffer resb OP___RESULT___NUMBER_BUFFER_LEN
+    op___div___quotient_ascii_buffer resb OP___DIV___QUOTIENT_ASCII_BUFFER_LEN
+    op___div___quotient_number_buffer resb OP___DIV___QUOTIENT_NUMBER_BUFFER_LEN
+    op___div___decimal_ascii_buffer resb OP___DIV___DECIMAL_ASCII_BUFFER_LEN
+    op___div___decimal_number_buffer resb OP___DIV___DECIMAL_NUMBER_BUFFER_LEN
+    op___div___decimal_temp_ascii_buffer resb OP___DIV___DECIMAL_TEMP_ASCII_BUFFER_LEN
+    op___div___is_negative_dividend_buffer resb OP___DIV___SIGN_FLAG_BUFFER_LEN
+    op___div___is_negative_divisor_buffer resb OP___DIV___SIGN_FLAG_BUFFER_LEN
+    op___div___is_negative_final_result_buffer resb OP___DIV___SIGN_FLAG_BUFFER_LEN
 
 section .text
     global _start
@@ -57,29 +59,29 @@ section .text
     ; Exports
     ; --------------------------------------
     ; Functions
-    global operation___start_operation
+    global op___start_operation
     ; Buffers
-    global calculation_result_ascii_buffer
-    global calculation_result_number_buffer
-    global division_quotient_ascii_buffer
-    global division_quotient_number_buffer
-    global division_decimal_ascii_buffer
-    global division_decimal_number_buffer
-    global division_decimal_temp_ascii_buffer
-    global division_is_negative_dividend_buffer
-    global division_is_negative_divisor_buffer
-    global division_is_negative_final_result_buffer
+    global op___result___ascii_buffer
+    global op___result___number_buffer
+    global op___div___quotient_ascii_buffer
+    global op___div___quotient_number_buffer
+    global op___div___decimal_ascii_buffer
+    global op___div___decimal_number_buffer
+    global op___div___decimal_temp_ascii_buffer
+    global op___div___is_negative_dividend_buffer
+    global op___div___is_negative_divisor_buffer
+    global op___div___is_negative_final_result_buffer
     ; Constants
-    global CALCULATION_RESULT_ASCII_BUFFER_LEN
-    global CALCULATION_RESULT_NUMBER_BUFFER_LEN
-    global DIVISION_QUOTIENT_ASCII_BUFFER_LEN
-    global DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
-    global DIVISION_DECIMAL_ASCII_BUFFER_LEN
-    global DIVISION_DECIMAL_NUMBER_BUFFER_LEN
-    global DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
-    global DIVISION_SIGN_FLAG_BUFFER_LEN
+    global OP___RESULT___ASCII_BUFFER_LEN
+    global OP___RESULT___NUMBER_BUFFER_LEN
+    global OP___DIV___QUOTIENT_ASCII_BUFFER_LEN
+    global OP___DIV___QUOTIENT_NUMBER_BUFFER_LEN
+    global OP___DIV___DECIMAL_ASCII_BUFFER_LEN
+    global OP___DIV___DECIMAL_NUMBER_BUFFER_LEN
+    global OP___DIV___DECIMAL_TEMP_ASCII_BUFFER_LEN
+    global OP___DIV___SIGN_FLAG_BUFFER_LEN
 
-operation___start_operation:
+op___start_operation:
     ; Start the operation selected by the user (e.g., addition, subtraction).
     push ebp
     mov ebp, esp
@@ -123,22 +125,22 @@ operation___start_operation:
         mov eax, [input___operand_1_number_buffer]
         mov ebx, [input___operand_2_number_buffer]
         add eax, ebx
-        mov [calculation_result_number_buffer], eax
-        jmp operation___start_operation___convert_result_from_number_to_ascii
+        mov [op___result___number_buffer], eax
+        jmp op___start_operation___convert_result_from_number_to_ascii
    
     subtraction:
         mov eax, [input___operand_1_number_buffer]
         mov ebx, [input___operand_2_number_buffer]
         sub eax, ebx
-        mov [calculation_result_number_buffer], eax
-        jmp operation___start_operation___convert_result_from_number_to_ascii
+        mov [op___result___number_buffer], eax
+        jmp op___start_operation___convert_result_from_number_to_ascii
 
     multiplication:
         mov eax, [input___operand_1_number_buffer]
         mov ebx, [input___operand_2_number_buffer]
         imul eax, ebx
-        mov [calculation_result_number_buffer], eax
-        jmp operation___start_operation___convert_result_from_number_to_ascii
+        mov [op___result___number_buffer], eax
+        jmp op___start_operation___convert_result_from_number_to_ascii
 
     division:
         division___get_result_sign:
@@ -146,25 +148,25 @@ operation___start_operation:
                 mov eax, [input___operand_1_number_buffer]
                 test eax, eax
                 jns division___get_result_sign___check_if_divisor_is_negative
-                mov byte [division_is_negative_dividend_buffer], 1 ; Set flag to indicate negativity
+                mov byte [op___div___is_negative_dividend_buffer], 1 ; Set flag to indicate negativity
 
             division___get_result_sign___check_if_divisor_is_negative:
                 mov eax, [input___operand_2_number_buffer]
                 test eax, eax
                 jns division___get_result_sign___set_flag
-                mov byte [division_is_negative_divisor_buffer], 1 ; Set flag to indicate negativity
+                mov byte [op___div___is_negative_divisor_buffer], 1 ; Set flag to indicate negativity
 
             division___get_result_sign___set_flag:
-                mov eax, [division_is_negative_dividend_buffer]
-                mov ebx, [division_is_negative_divisor_buffer]
+                mov eax, [op___div___is_negative_dividend_buffer]
+                mov ebx, [op___div___is_negative_divisor_buffer]
                 add eax, ebx
                 cmp eax, 1 ; If sum of flags is 1, then the final result will be negative
                 je division___get_result_sign___set_flag___set_negative
-                mov byte [division_is_negative_final_result_buffer], 0
+                mov byte [op___div___is_negative_final_result_buffer], 0
                 jmp division___get_quotient_part
 
                 division___get_result_sign___set_flag___set_negative:
-                    mov byte [division_is_negative_final_result_buffer], 1
+                    mov byte [op___div___is_negative_final_result_buffer], 1
 
         division___get_quotient_part:
             xor edx, edx ; Prepare edx for division
@@ -179,7 +181,7 @@ operation___start_operation:
 
             division___get_quotient_part___divide:
                 idiv ecx
-                mov [division_quotient_number_buffer], eax
+                mov [op___div___quotient_number_buffer], eax
                 push edx ; Save remainder on the stack
 
             division___get_quotient_part___check_zero_quotient:
@@ -188,16 +190,16 @@ operation___start_operation:
                 ; convert the quotient to ASCII straight away.
                 cmp eax, 0
                 jnz division___get_quotient_part___convert_to_ascii
-                mov eax, [division_is_negative_final_result_buffer]
+                mov eax, [op___div___is_negative_final_result_buffer]
                 cmp eax, 0
                 je division___get_quotient_part___convert_to_ascii
-                mov byte [division_quotient_ascii_buffer], "-"
-                mov byte [division_quotient_ascii_buffer + 1], "0"
+                mov byte [op___div___quotient_ascii_buffer], "-"
+                mov byte [op___div___quotient_ascii_buffer + 1], "0"
                 jmp division___get_decimal_part
 
             division___get_quotient_part___convert_to_ascii:
-                push division_quotient_ascii_buffer
-                push division_quotient_number_buffer
+                push op___div___quotient_ascii_buffer
+                push op___div___quotient_number_buffer
                 call utility___convert_num_to_str
                 add esp, 8
 
@@ -239,16 +241,16 @@ operation___start_operation:
                     push edx
 
                     ; Store quotient part in buffer
-                    mov [division_decimal_number_buffer], eax
+                    mov [op___div___decimal_number_buffer], eax
 
                     ; Convert quotient part to ASCII
-                    push division_decimal_temp_ascii_buffer
-                    push division_decimal_number_buffer
+                    push op___div___decimal_temp_ascii_buffer
+                    push op___div___decimal_number_buffer
                     call utility___convert_num_to_str
                     add esp, 8
-                    ; Clear division_decimal_number_buffer
-                    push DIVISION_DECIMAL_NUMBER_BUFFER_LEN
-                    push division_decimal_number_buffer
+                    ; Clear op___div___decimal_number_buffer
+                    push OP___DIV___DECIMAL_NUMBER_BUFFER_LEN
+                    push op___div___decimal_number_buffer
                     call utility___clear_buffer
                     add esp, 8
 
@@ -257,8 +259,8 @@ operation___start_operation:
                     pop edi
 
                     ; Move the converted digit to the buffer that stores whole decimal part
-                    mov al, byte [division_decimal_temp_ascii_buffer]
-                    lea ecx, division_decimal_ascii_buffer
+                    mov al, byte [op___div___decimal_temp_ascii_buffer]
+                    lea ecx, op___div___decimal_ascii_buffer
                     mov [ecx + edi], al
                     inc edi ; Increment the decimal part digit count
                     push edi ; Save digit count on the stack
@@ -268,39 +270,39 @@ operation___start_operation:
                     je division___concatenate_quotient_and_decimal_parts
 
                     ; Check if we have reached the maximum wanted precision
-                    cmp edi, DIVISION_DECIMAL_PRECISION
+                    cmp edi, OP___DIV___DECIMAL_PRECISION
                     jl division___get_decimal_part___calculate___loop
 
         division___concatenate_quotient_and_decimal_parts:
             ; Copy quotient buffer content to calculation result buffer
             xor edi, edi
-            push division_quotient_ascii_buffer
+            push op___div___quotient_ascii_buffer
             call utility___count_string_length
             mov ecx, edi
-            mov esi, division_quotient_ascii_buffer
-            mov edi, calculation_result_ascii_buffer
+            mov esi, op___div___quotient_ascii_buffer
+            mov edi, op___result___ascii_buffer
             cld
             rep movsb
 
             ; Add decimal point and null terminator after the quotient in the calculation result buffer
             xor edi, edi
-            push calculation_result_ascii_buffer
+            push op___result___ascii_buffer
             call utility___count_string_length
-            mov esi, calculation_result_ascii_buffer
+            mov esi, op___result___ascii_buffer
             mov byte [esi + edi], "."
             inc edi
             mov byte [esi + edi], 0
             
             ; Set ebx to point to byte after "." in the calculation result buffer
-            lea ebx, calculation_result_ascii_buffer
+            lea ebx, op___result___ascii_buffer
             add ebx, edi 
 
             ; Copy decimal buffer content to calculation result buffer after the "."
             xor edi, edi
-            push division_decimal_ascii_buffer
+            push op___div___decimal_ascii_buffer
             call utility___count_string_length
             mov ecx, edi
-            mov esi, division_decimal_ascii_buffer
+            mov esi, op___div___decimal_ascii_buffer
             mov edi, ebx
             cld
             rep movsb
@@ -310,7 +312,7 @@ operation___start_operation:
             mov byte [edi], 0xa
             mov byte [edi + 1], 0
 
-            jmp operation___start_operation___print_calculation_result
+            jmp op___start_operation___print_calculation_result
 
         division___print_cant_divide_by_zero:
             mov eax, SYS_WRITE
@@ -318,7 +320,7 @@ operation___start_operation:
             mov ecx, MSG_CANT_DIVIDE_BY_ZERO
             mov edx, MSG_LEN_CANT_DIVIDE_BY_ZERO
             int 0x80
-            jmp operation___start_operation___return
+            jmp op___start_operation___return
 
         division___print_result_too_small_to_display:
             mov eax, SYS_WRITE
@@ -326,14 +328,14 @@ operation___start_operation:
             mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
             mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
             int 0x80
-            jmp operation___start_operation___return
+            jmp op___start_operation___return
 
-    operation___start_operation___convert_result_from_number_to_ascii:
-        push calculation_result_ascii_buffer
-        push calculation_result_number_buffer
+    op___start_operation___convert_result_from_number_to_ascii:
+        push op___result___ascii_buffer
+        push op___result___number_buffer
         call utility___convert_num_to_str
 
-    operation___start_operation___print_calculation_result:
+    op___start_operation___print_calculation_result:
         ; Output 'Result: (string in result buffer)'
         mov eax, SYS_WRITE
         mov ebx, STDOUT
@@ -342,11 +344,11 @@ operation___start_operation:
         int 0x80
         mov eax, SYS_WRITE
         mov ebx, STDOUT
-        mov ecx, calculation_result_ascii_buffer
-        mov edx, CALCULATION_RESULT_ASCII_BUFFER_LEN
+        mov ecx, op___result___ascii_buffer
+        mov edx, OP___RESULT___ASCII_BUFFER_LEN
         int 0x80
 
-    operation___start_operation___return:
+    op___start_operation___return:
         mov esp, ebp
         pop ebp
         ret

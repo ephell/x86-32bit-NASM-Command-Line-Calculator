@@ -12,29 +12,29 @@ section .text
     extern input___operand_1_number_buffer
     extern input___operand_2_ascii_buffer
     extern input___operand_2_number_buffer
-    extern calculation_result_ascii_buffer
-    extern calculation_result_number_buffer
-    extern division_quotient_ascii_buffer
-    extern division_quotient_number_buffer
-    extern division_decimal_ascii_buffer
-    extern division_decimal_number_buffer
-    extern division_decimal_temp_ascii_buffer
-    extern division_is_negative_dividend_buffer
-    extern division_is_negative_divisor_buffer
-    extern division_is_negative_final_result_buffer
+    extern op___result___ascii_buffer
+    extern op___result___number_buffer
+    extern op___div___quotient_ascii_buffer
+    extern op___div___quotient_number_buffer
+    extern op___div___decimal_ascii_buffer
+    extern op___div___decimal_number_buffer
+    extern op___div___decimal_temp_ascii_buffer
+    extern op___div___is_negative_dividend_buffer
+    extern op___div___is_negative_divisor_buffer
+    extern op___div___is_negative_final_result_buffer
     ; Constants
     extern INPUT___OPERATION_CHOICE_BUFFER_LEN
     extern INPUT___CONTINUE_CHOICE_BUFFER_LEN
     extern INPUT___OPERAND_ASCII_BUFFER_LEN
     extern INPUT___OPERAND_NUMBER_BUFFER_LEN
-    extern CALCULATION_RESULT_ASCII_BUFFER_LEN
-    extern CALCULATION_RESULT_NUMBER_BUFFER_LEN
-    extern DIVISION_QUOTIENT_ASCII_BUFFER_LEN
-    extern DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
-    extern DIVISION_DECIMAL_ASCII_BUFFER_LEN
-    extern DIVISION_DECIMAL_NUMBER_BUFFER_LEN
-    extern DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
-    extern DIVISION_SIGN_FLAG_BUFFER_LEN
+    extern OP___RESULT___ASCII_BUFFER_LEN
+    extern OP___RESULT___NUMBER_BUFFER_LEN
+    extern OP___DIV___QUOTIENT_ASCII_BUFFER_LEN
+    extern OP___DIV___QUOTIENT_NUMBER_BUFFER_LEN
+    extern OP___DIV___DECIMAL_ASCII_BUFFER_LEN
+    extern OP___DIV___DECIMAL_NUMBER_BUFFER_LEN
+    extern OP___DIV___DECIMAL_TEMP_ASCII_BUFFER_LEN
+    extern OP___DIV___SIGN_FLAG_BUFFER_LEN
     ; --------------------------------------
     ; Exports
     ; --------------------------------------
@@ -192,17 +192,17 @@ utility___clear_all_buffers:
     push INPUT___OPERAND_ASCII_BUFFER_LEN 
     push input___operand_2_ascii_buffer
     call utility___clear_buffer
-    push CALCULATION_RESULT_ASCII_BUFFER_LEN 
-    push calculation_result_ascii_buffer
+    push OP___RESULT___ASCII_BUFFER_LEN 
+    push op___result___ascii_buffer
     call utility___clear_buffer
-    push DIVISION_QUOTIENT_ASCII_BUFFER_LEN
-    push division_quotient_ascii_buffer
+    push OP___DIV___QUOTIENT_ASCII_BUFFER_LEN
+    push op___div___quotient_ascii_buffer
     call utility___clear_buffer
-    push DIVISION_DECIMAL_ASCII_BUFFER_LEN
-    push division_decimal_ascii_buffer
+    push OP___DIV___DECIMAL_ASCII_BUFFER_LEN
+    push op___div___decimal_ascii_buffer
     call utility___clear_buffer
-    push DIVISION_DECIMAL_TEMP_ASCII_BUFFER_LEN
-    push division_decimal_temp_ascii_buffer
+    push OP___DIV___DECIMAL_TEMP_ASCII_BUFFER_LEN
+    push op___div___decimal_temp_ascii_buffer
     call utility___clear_buffer
 
     ; Clear all number buffers
@@ -212,25 +212,25 @@ utility___clear_all_buffers:
     push INPUT___OPERAND_NUMBER_BUFFER_LEN 
     push input___operand_2_number_buffer
     call utility___clear_buffer
-    push CALCULATION_RESULT_NUMBER_BUFFER_LEN 
-    push calculation_result_number_buffer
+    push OP___RESULT___NUMBER_BUFFER_LEN 
+    push op___result___number_buffer
     call utility___clear_buffer
-    push DIVISION_QUOTIENT_NUMBER_BUFFER_LEN
-    push division_quotient_number_buffer
+    push OP___DIV___QUOTIENT_NUMBER_BUFFER_LEN
+    push op___div___quotient_number_buffer
     call utility___clear_buffer
-    push DIVISION_DECIMAL_NUMBER_BUFFER_LEN
-    push division_decimal_number_buffer
+    push OP___DIV___DECIMAL_NUMBER_BUFFER_LEN
+    push op___div___decimal_number_buffer
     call utility___clear_buffer
 
     ; Clear division flag buffers
-    push DIVISION_SIGN_FLAG_BUFFER_LEN
-    push division_is_negative_dividend_buffer
+    push OP___DIV___SIGN_FLAG_BUFFER_LEN
+    push op___div___is_negative_dividend_buffer
     call utility___clear_buffer
-    push DIVISION_SIGN_FLAG_BUFFER_LEN
-    push division_is_negative_divisor_buffer
+    push OP___DIV___SIGN_FLAG_BUFFER_LEN
+    push op___div___is_negative_divisor_buffer
     call utility___clear_buffer
-    push DIVISION_SIGN_FLAG_BUFFER_LEN
-    push division_is_negative_final_result_buffer
+    push OP___DIV___SIGN_FLAG_BUFFER_LEN
+    push op___div___is_negative_final_result_buffer
     call utility___clear_buffer
 
     mov esp, ebp

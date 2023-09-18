@@ -1,3 +1,6 @@
+; 'input.asm'
+; Contains logic for reading and processing user input from stdin.
+
 SYS_READ equ 3
 SYS_WRITE equ 4
 STDIN equ 0

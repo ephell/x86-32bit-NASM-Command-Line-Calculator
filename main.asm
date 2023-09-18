@@ -1,8 +1,7 @@
+; 'main.asm'
+; Main file of the program.
+
 SYS_EXIT equ 1
-
-section .data
-
-section .bss
 
 section .text
     global _start
@@ -18,7 +17,7 @@ section .text
     extern utility___clear_all_buffers
     extern input___read_operation_choice
     extern input___read_continue_choice
-    extern operation___start_operation
+    extern op___start_operation
     ; Buffers
     extern input___continue_choice_ascii_buffer
 
@@ -34,7 +33,7 @@ _start:
         call print___select_operation
         call input___read_operation_choice
         call print___separator ; Separator
-        call operation___start_operation
+        call op___start_operation
         call print___separator ; Separator
         call print___ask_if_user_wants_to_continue
         call input___read_continue_choice
