@@ -82,7 +82,7 @@ section .text
     global OP___DIV___SIGN_FLAG_BUFFER_LEN
 
 op___start_operation:
-    ; Start the operation selected by the user (e.g., addition, subtraction).
+    ; Start the operation selected by the user.
     push ebp
     mov ebp, esp
 
