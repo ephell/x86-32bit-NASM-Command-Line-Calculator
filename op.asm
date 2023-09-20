@@ -6,10 +6,6 @@ STDOUT equ 1
 
 section .data
     ; Messages
-    MSG_ENTER_FIRST_NUMBER db "Enter first number: "
-    MSG_LEN_ENTER_FIRST_NUMBER equ $ - MSG_ENTER_FIRST_NUMBER
-    MSG_ENTER_SECOND_NUMBER db "Enter second number: "
-    MSG_LEN_ENTER_SECOND_NUMBER equ $ - MSG_ENTER_SECOND_NUMBER
     MSG_CALCULATION_RESULT db "Result: "
     MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
     MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!", 0xa
@@ -48,7 +44,8 @@ section .text
     extern utility___count_string_length
     extern utility___convert_num_to_str
     extern utility___clear_buffer
-    extern input___read_number
+    extern input___read_operand_1
+    extern input___read_operand_2
     ; Buffers
     extern input___operation_choice_ascii_buffer
     extern input___operand_1_ascii_buffer
@@ -85,30 +82,6 @@ op___start_operation:
     ; Start the operation selected by the user.
     push ebp
     mov ebp, esp
-
-    ; Output 'Enter first number: '
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_ENTER_FIRST_NUMBER
-    mov edx, MSG_LEN_ENTER_FIRST_NUMBER
-    int 0x80
-
-    ; Read first number
-    push input___operand_1_number_buffer
-    push input___operand_1_ascii_buffer
-    call input___read_number
-
-    ; Output 'Enter second number: '
-    mov eax, SYS_WRITE
-    mov ebx, STDOUT
-    mov ecx, MSG_ENTER_SECOND_NUMBER
-    mov edx, MSG_LEN_ENTER_SECOND_NUMBER
-    int 0x80
-    
-    ; Read second number
-    push input___operand_2_number_buffer
-    push input___operand_2_ascii_buffer
-    call input___read_number
 
     ; Perform operation based on user's choice
     mov al, byte [input___operation_choice_ascii_buffer]

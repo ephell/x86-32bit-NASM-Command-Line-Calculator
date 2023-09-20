@@ -34,13 +34,17 @@ section .text
     extern utility___count_string_length
     extern utility___clear_buffer
     extern utility___convert_str_to_num
+    extern print___enter_operand_1
+    extern print___enter_operand_2
+    extern print___operation_name
     ; --------------------------------------
     ; Exports
     ; --------------------------------------
     ; Functions
     global input___read_operation_choice
     global input___read_continue_choice
-    global input___read_number
+    global input___read_operand_1
+    global input___read_operand_2
     ; Buffers
     global input___operation_choice_ascii_buffer
     global input___continue_choice_ascii_buffer
@@ -229,6 +233,40 @@ input___read_number:
         push dword [ebp + 12] ; Pushing the number buffer
         push dword [ebp + 8] ; Pushing the ASCII buffer
         call utility___convert_str_to_num
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+input___read_operand_1:
+    push ebp
+    mov ebp, esp
+
+    push input___operation_choice_ascii_buffer
+    call print___operation_name
+
+    call print___enter_operand_1
+
+    push input___operand_1_number_buffer
+    push input___operand_1_ascii_buffer
+    call input___read_number
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+input___read_operand_2:
+    push ebp
+    mov ebp, esp
+
+    push input___operation_choice_ascii_buffer
+    call print___operation_name
+
+    call print___enter_operand_2
+
+    push input___operand_2_number_buffer
+    push input___operand_2_ascii_buffer
+    call input___read_number
 
     mov esp, ebp
     pop ebp

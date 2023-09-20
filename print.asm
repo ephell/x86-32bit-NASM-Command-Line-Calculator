@@ -21,6 +21,18 @@ section .data
     MSG_LEN_OP_DIVISION equ $ - MSG_OP_DIVISION
     MSG_PERFORM_ANOTHER_OPERATION db "Would you like to perform another operation? (y/n): "
     MSG_LEN_PERFORM_ANOTHER_OPERATION equ $ - MSG_PERFORM_ANOTHER_OPERATION
+    MSG_ENTER_OPERAND_1 db "Enter operand 1: "
+    MSG_LEN_ENTER_OPERAND_1 equ $ - MSG_ENTER_OPERAND_1
+    MSG_ENTER_OPERAND_2 db "Enter operand 2: "
+    MSG_LEN_ENTER_OPERAND_2 equ $ - MSG_ENTER_OPERAND_2
+    MSG_ADDITION_PREFIX db "(Addition) "
+    MSG_LEN_ADDITION_PREFIX equ $ - MSG_ADDITION_PREFIX
+    MSG_SUBTRACTION_PREFIX db "(Subtraction) "
+    MSG_LEN_SUBTRACTION_PREFIX equ $ - MSG_SUBTRACTION_PREFIX
+    MSG_MULTIPLICATION_PREFIX db "(Multiplication) "
+    MSG_LEN_MULTIPLICATION_PREFIX equ $ - MSG_MULTIPLICATION_PREFIX
+    MSG_DIVISION_PREFIX db "(Division) "
+    MSG_LEN_DIVISION_PREFIX equ $ - MSG_DIVISION_PREFIX
 
 section .text
     ; --------------------------------------
@@ -32,6 +44,9 @@ section .text
     global print___operation_options
     global print___select_operation
     global print___ask_if_user_wants_to_continue
+    global print___enter_operand_1
+    global print___enter_operand_2
+    global print___operation_name
 
 print___separator:
     push ebp
@@ -120,3 +135,86 @@ print___ask_if_user_wants_to_continue:
     mov esp, ebp
     pop ebp
     ret
+
+print___enter_operand_1:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_ENTER_OPERAND_1
+    mov edx, MSG_LEN_ENTER_OPERAND_1
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___enter_operand_2:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_ENTER_OPERAND_2
+    mov edx, MSG_LEN_ENTER_OPERAND_2
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___operation_name:
+    ; Print the name of the operation that was selected.
+    ; Arg_1 (ebp+8) - address to buffer that holds the operation code.
+    push ebp
+    mov ebp, esp
+
+    mov esi, [ebp + 8]
+    mov al, byte [esi]
+    cmp al, "1"
+    je print___operation_name___addition
+    cmp al, "2"
+    je print___operation_name___subtraction
+    cmp al, "3"
+    je print___operation_name___multiplication
+    cmp al, "4"
+    je print___operation_name___division
+    ; If none of the above match
+    jmp print___operation_name___return
+
+    print___operation_name___addition:
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_ADDITION_PREFIX
+        mov edx, MSG_LEN_ADDITION_PREFIX
+        int 0x80
+        jmp print___operation_name___return
+
+    print___operation_name___subtraction:
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_SUBTRACTION_PREFIX
+        mov edx, MSG_LEN_SUBTRACTION_PREFIX
+        int 0x80
+        jmp print___operation_name___return
+
+    print___operation_name___multiplication:
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_MULTIPLICATION_PREFIX
+        mov edx, MSG_LEN_MULTIPLICATION_PREFIX
+        int 0x80
+        jmp print___operation_name___return
+
+    print___operation_name___division:
+        mov eax, SYS_WRITE
+        mov ebx, STDOUT
+        mov ecx, MSG_DIVISION_PREFIX
+        mov edx, MSG_LEN_DIVISION_PREFIX
+        int 0x80
+
+    print___operation_name___return:
+        mov esp, ebp
+        pop ebp
+        ret
