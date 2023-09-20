@@ -265,8 +265,6 @@ print___result_too_small_to_be_displayed:
     ret
 
 print___calculation_result:
-    ; Arg_1 (ebp+8) - address to buffer that holds the result.
-    ; Arg_2 (ebp+12) - length of the buffer.
     push ebp
     mov ebp, esp
 

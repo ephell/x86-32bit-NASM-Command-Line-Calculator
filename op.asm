@@ -277,7 +277,7 @@ op___start_operation:
             mov byte [edi], 0xa
             mov byte [edi + 1], 0
 
-            jmp op___start_operation___print_calculation_result
+            jmp op___start_operation___calculation_result
 
         division___division_by_zero:
             push input___operation_choice_ascii_buffer
@@ -296,7 +296,7 @@ op___start_operation:
         push op___result___number_buffer
         call utility___convert_num_to_str
 
-    op___start_operation___print_calculation_result:
+    op___start_operation___calculation_result:
         push input___operation_choice_ascii_buffer
         call print___operation_name
         call print___calculation_result
