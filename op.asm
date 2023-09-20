@@ -1,7 +1,13 @@
 ; 'op.asm'
 ; Contains logic for performing arithmetic operations on numbers.
 
+SYS_WRITE equ 4
+STDOUT equ 1
+
 section .data
+    ; Messages
+    MSG_OPERATION_RESULT db "Result: "
+    MSG_LEN_OPERATION_RESULT equ $ - MSG_OPERATION_RESULT
     ; Constants
     OP___RESULT___ASCII_BUFFER_LEN equ 255
     OP___RESULT___NUMBER_BUFFER_LEN equ 32
@@ -49,6 +55,7 @@ section .text
     ; --------------------------------------
     ; Functions
     global op___start_operation
+    global op___print_result
     ; Buffers
     global op___result___ascii_buffer
     global op___result___number_buffer
@@ -91,21 +98,33 @@ op___start_operation:
         mov ebx, [input___operand_2_number_buffer]
         add eax, ebx
         mov [op___result___number_buffer], eax
-        jmp op___start_operation___convert_result_from_number_to_ascii
+        ; Convert result from number to ASCII
+        push op___result___ascii_buffer
+        push op___result___number_buffer
+        call utility___convert_num_to_str
+        jmp op___start_operation___return
    
     subtraction:
         mov eax, [input___operand_1_number_buffer]
         mov ebx, [input___operand_2_number_buffer]
         sub eax, ebx
         mov [op___result___number_buffer], eax
-        jmp op___start_operation___convert_result_from_number_to_ascii
+        ; Convert result from number to ASCII
+        push op___result___ascii_buffer
+        push op___result___number_buffer
+        call utility___convert_num_to_str
+        jmp op___start_operation___return
 
     multiplication:
         mov eax, [input___operand_1_number_buffer]
         mov ebx, [input___operand_2_number_buffer]
         imul eax, ebx
         mov [op___result___number_buffer], eax
-        jmp op___start_operation___convert_result_from_number_to_ascii
+        ; Convert result from number to ASCII
+        push op___result___ascii_buffer
+        push op___result___number_buffer
+        call utility___convert_num_to_str
+        jmp op___start_operation___return
 
     division:
         division___get_result_sign:
@@ -195,7 +214,7 @@ op___start_operation:
 
                     ; Check for overflow. If it occured then it means the decimal 
                     ; part is too small to be displayed.
-                    jo division___print_result_too_small
+                    jo division___result_too_small
 
                     ; Divide the scaled remainder by the original divisor
                     xor edx, edx
@@ -277,7 +296,7 @@ op___start_operation:
             mov byte [edi], 0xa
             mov byte [edi + 1], 0
 
-            jmp op___start_operation___calculation_result
+            jmp op___start_operation___return
 
         division___division_by_zero:
             push input___operation_choice_ascii_buffer
@@ -285,23 +304,37 @@ op___start_operation:
             call print___cant_divide_by_zero
             jmp op___start_operation___return
 
-        division___print_result_too_small:
+        division___result_too_small:
             push input___operation_choice_ascii_buffer
             call print___operation_name
             call print___result_too_small_to_be_displayed
             jmp op___start_operation___return
 
-    op___start_operation___convert_result_from_number_to_ascii:
-        push op___result___ascii_buffer
-        push op___result___number_buffer
-        call utility___convert_num_to_str
-
-    op___start_operation___calculation_result:
-        push input___operation_choice_ascii_buffer
-        call print___operation_name
-        call print___calculation_result
-
     op___start_operation___return:
         mov esp, ebp
         pop ebp
         ret
+
+op___print_result:
+    ; Print the result of the operation.
+    push ebp
+    mov ebp, esp
+
+    push input___operation_choice_ascii_buffer
+    call print___operation_name
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_OPERATION_RESULT
+    mov edx, MSG_LEN_OPERATION_RESULT
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, op___result___ascii_buffer
+    mov edx, OP___RESULT___ASCII_BUFFER_LEN
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
