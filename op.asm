@@ -1,17 +1,7 @@
 ; 'op.asm'
 ; Contains logic for performing arithmetic operations on numbers.
 
-SYS_WRITE equ 4
-STDOUT equ 1
-
 section .data
-    ; Messages
-    MSG_CALCULATION_RESULT db "Result: "
-    MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
-    MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!", 0xa
-    MSG_LEN_CANT_DIVIDE_BY_ZERO equ $ - MSG_CANT_DIVIDE_BY_ZERO
-    MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED db "Result is too small to be displayed!", 0xa
-    MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED equ $ - MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
     ; Constants
     OP___RESULT___ASCII_BUFFER_LEN equ 255
     OP___RESULT___NUMBER_BUFFER_LEN equ 32
@@ -44,8 +34,10 @@ section .text
     extern utility___count_string_length
     extern utility___convert_num_to_str
     extern utility___clear_buffer
-    extern input___read_operand_1
-    extern input___read_operand_2
+    extern print___cant_divide_by_zero
+    extern print___result_too_small_to_be_displayed
+    extern print___calculation_result
+    extern print___operation_name
     ; Buffers
     extern input___operation_choice_ascii_buffer
     extern input___operand_1_ascii_buffer
@@ -146,7 +138,7 @@ op___start_operation:
             mov eax, [input___operand_1_number_buffer] ; Load dividend
             mov ecx, [input___operand_2_number_buffer] ; Load divisor
             cmp ecx, 0 ; Prevent division by 0
-            je division___print_cant_divide_by_zero
+            je division___division_by_zero
             ; Sign-extend eax into edx:eax if dividend is negative
             test eax, eax 
             jns division___get_quotient_part___divide
@@ -203,7 +195,7 @@ op___start_operation:
 
                     ; Check for overflow. If it occured then it means the decimal 
                     ; part is too small to be displayed.
-                    jo division___print_result_too_small_to_display
+                    jo division___print_result_too_small
 
                     ; Divide the scaled remainder by the original divisor
                     xor edx, edx
@@ -287,20 +279,16 @@ op___start_operation:
 
             jmp op___start_operation___print_calculation_result
 
-        division___print_cant_divide_by_zero:
-            mov eax, SYS_WRITE
-            mov ebx, STDOUT
-            mov ecx, MSG_CANT_DIVIDE_BY_ZERO
-            mov edx, MSG_LEN_CANT_DIVIDE_BY_ZERO
-            int 0x80
+        division___division_by_zero:
+            push input___operation_choice_ascii_buffer
+            call print___operation_name
+            call print___cant_divide_by_zero
             jmp op___start_operation___return
 
-        division___print_result_too_small_to_display:
-            mov eax, SYS_WRITE
-            mov ebx, STDOUT
-            mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
-            mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
-            int 0x80
+        division___print_result_too_small:
+            push input___operation_choice_ascii_buffer
+            call print___operation_name
+            call print___result_too_small_to_be_displayed
             jmp op___start_operation___return
 
     op___start_operation___convert_result_from_number_to_ascii:
@@ -309,17 +297,9 @@ op___start_operation:
         call utility___convert_num_to_str
 
     op___start_operation___print_calculation_result:
-        ; Output 'Result: (string in result buffer)'
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_CALCULATION_RESULT
-        mov edx, MSG_LEN_CALCULATION_RESULT
-        int 0x80
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, op___result___ascii_buffer
-        mov edx, OP___RESULT___ASCII_BUFFER_LEN
-        int 0x80
+        push input___operation_choice_ascii_buffer
+        call print___operation_name
+        call print___calculation_result
 
     op___start_operation___return:
         mov esp, ebp

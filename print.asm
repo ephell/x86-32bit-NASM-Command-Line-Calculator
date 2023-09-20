@@ -33,6 +33,13 @@ section .data
     MSG_LEN_MULTIPLICATION_PREFIX equ $ - MSG_MULTIPLICATION_PREFIX
     MSG_DIVISION_PREFIX db "(Division) "
     MSG_LEN_DIVISION_PREFIX equ $ - MSG_DIVISION_PREFIX
+    MSG_CALCULATION_RESULT db "Result: "
+    MSG_LEN_CALCULATION_RESULT equ $ - MSG_CALCULATION_RESULT
+    MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!", 0xa
+    MSG_LEN_CANT_DIVIDE_BY_ZERO equ $ - MSG_CANT_DIVIDE_BY_ZERO
+    MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED db "Result is too small to be displayed!", 0xa
+    MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED equ $ - MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+
 
 section .text
     ; --------------------------------------
@@ -47,6 +54,16 @@ section .text
     global print___enter_operand_1
     global print___enter_operand_2
     global print___operation_name
+    global print___cant_divide_by_zero
+    global print___result_too_small_to_be_displayed
+    global print___calculation_result
+    ; --------------------------------------
+    ; Imports
+    ; --------------------------------------
+    ; Buffers
+    extern op___result___ascii_buffer
+    ; Constants
+    extern OP___RESULT___ASCII_BUFFER_LEN
 
 print___separator:
     push ebp
@@ -218,3 +235,53 @@ print___operation_name:
         mov esp, ebp
         pop ebp
         ret
+
+print___cant_divide_by_zero:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_CANT_DIVIDE_BY_ZERO
+    mov edx, MSG_LEN_CANT_DIVIDE_BY_ZERO
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___result_too_small_to_be_displayed:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+    mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___calculation_result:
+    ; Arg_1 (ebp+8) - address to buffer that holds the result.
+    ; Arg_2 (ebp+12) - length of the buffer.
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_CALCULATION_RESULT
+    mov edx, MSG_LEN_CALCULATION_RESULT
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, op___result___ascii_buffer
+    mov edx, OP___RESULT___ASCII_BUFFER_LEN
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
