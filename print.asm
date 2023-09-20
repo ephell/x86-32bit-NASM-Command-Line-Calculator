@@ -37,6 +37,10 @@ section .data
     MSG_LEN_CANT_DIVIDE_BY_ZERO equ $ - MSG_CANT_DIVIDE_BY_ZERO
     MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED db "Result is too small to be displayed!", 0xa
     MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED equ $ - MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+    MSG_INVALID_CHOICE db "Invalid choice. Try again: "
+    MSG_LEN_INVALID_CHOICE equ $ - MSG_INVALID_CHOICE
+    MSG_INVALID_OPERAND db "Invalid operand. Try again: "
+    MSG_LEN_INVALID_INPUT equ $ - MSG_INVALID_OPERAND
 
 section .text
     ; --------------------------------------
@@ -53,6 +57,8 @@ section .text
     global print___operation_name
     global print___cant_divide_by_zero
     global print___result_too_small_to_be_displayed
+    global print___invalid_choice
+    global print___invalid_operand
 
 print___separator:
     push ebp
@@ -247,6 +253,34 @@ print___result_too_small_to_be_displayed:
     mov ebx, STDOUT
     mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
     mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___invalid_choice:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_INVALID_CHOICE
+    mov edx, MSG_LEN_INVALID_CHOICE
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___invalid_operand:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_INVALID_OPERAND
+    mov edx, MSG_LEN_INVALID_INPUT
     int 0x80
 
     mov esp, ebp

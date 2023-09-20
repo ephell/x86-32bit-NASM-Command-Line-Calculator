@@ -7,11 +7,6 @@ STDIN equ 0
 STDOUT equ 1
 
 section .data
-    ; Messages
-    MSG_INVALID_CHOICE db "Invalid choice. Try again: "
-    MSG_LEN_INVALID_CHOICE equ $ - MSG_INVALID_CHOICE
-    MSG_INVALID_INPUT db "Invalid input. Try again: "
-    MSG_LEN_INVALID_INPUT equ $ - MSG_INVALID_INPUT
     ; Constants
     INPUT___OPERATION_CHOICE_BUFFER_LEN equ 255
     INPUT___CONTINUE_CHOICE_BUFFER_LEN equ 255
@@ -37,6 +32,8 @@ section .text
     extern print___enter_operand_1
     extern print___enter_operand_2
     extern print___operation_name
+    extern print___invalid_choice
+    extern print___invalid_operand
     ; --------------------------------------
     ; Exports
     ; --------------------------------------
@@ -91,15 +88,12 @@ input___read_operation_choice:
         jmp input___read_operation_choice___return
 
     input___read_operation_choice___reject_input:
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_INVALID_CHOICE
-        mov edx, MSG_LEN_INVALID_CHOICE
-        int 0x80
+        call print___invalid_choice
         ; Clear buffer before reading input again
         push INPUT___OPERATION_CHOICE_BUFFER_LEN
         push input___operation_choice_ascii_buffer
         call utility___clear_buffer
+        add esp, 8
         jmp input___read_operation_choice___read_input
 
     input___read_operation_choice___return:
@@ -164,15 +158,12 @@ input___read_continue_choice:
         jmp input___read_continue_choice___return
 
     input___read_continue_choice___reject_input:
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_INVALID_CHOICE
-        mov edx, MSG_LEN_INVALID_CHOICE
-        int 0x80
+        call print___invalid_choice
         ; Clear buffer before reading input again
         push INPUT___CONTINUE_CHOICE_BUFFER_LEN
         push input___continue_choice_ascii_buffer
         call utility___clear_buffer
+        add esp, 8
         jmp input___read_continue_choice___read_input
 
     input___read_continue_choice___return:
@@ -180,14 +171,14 @@ input___read_continue_choice:
         pop ebp
         ret
 
-input___read_number:
+input___read_operand:
     ; Read user input from stdin, convert string to number and store in buffer.
     ; Arg_1 (ebp+8) - address to buffer that holds users' input in ASCII.
     ; Arg_2 (ebp+12) - address to buffer that will hold the number.
     push ebp
     mov ebp, esp
 
-    input___read_number___read_input:
+    input___read_operand___read_input:
         mov esi, [ebp + 8] ; Load ASCII buffer address (reload the original each time)
         mov eax, SYS_READ
         mov ebx, STDIN
@@ -195,41 +186,45 @@ input___read_number:
         mov edx, INPUT___OPERAND_ASCII_BUFFER_LEN
         int 0x80
 
-    input___read_number___validate_input:
+    input___read_operand___validate_input:
         xor edi, edi
         mov al, byte [esi] ; Get the first character from the ASCII buffer
         ; Reject input if it is empty (only a new line character)
         cmp al, 0xa
-        je input___read_number___reject_input
+        je input___read_operand___reject_input
         ; Reject input if user typed "-" + Enter (new line character)
         cmp al, "-"
-        jne input___read_number___verify_all_chars_in_buffer_are_digits ; No need to check second char if number is positive
+        jne input___read_operand___verify_all_chars_in_buffer_are_digits ; No need to check second char if number is positive
         inc esi ; Make buffer pointer point at the second char
         cmp byte [esi], 0xa
-        je input___read_number___reject_input
+        je input___read_operand___reject_input
     
-    input___read_number___verify_all_chars_in_buffer_are_digits:
+    input___read_operand___verify_all_chars_in_buffer_are_digits:
         mov al, byte [esi + edi]
         cmp al, 0xa
-        je input___read_number___convert_from_ascii_to_number
+        je input___read_operand___convert_from_ascii_to_number
         ; Check if the read byte is a digit
         cmp al, "0"
-        jl input___read_number___reject_input
+        jl input___read_operand___reject_input
         cmp al, "9"
-        jg input___read_number___reject_input
+        jg input___read_operand___reject_input
         inc edi
         ; Continue reading untill new line character
-        jmp input___read_number___verify_all_chars_in_buffer_are_digits
+        jmp input___read_operand___verify_all_chars_in_buffer_are_digits
 
-    input___read_number___reject_input:
-        mov eax, SYS_WRITE
-        mov ebx, STDOUT
-        mov ecx, MSG_INVALID_INPUT
-        mov edx, MSG_LEN_INVALID_INPUT
-        int 0x80
-        jmp input___read_number___read_input
+    input___read_operand___reject_input:
+        push input___operation_choice_ascii_buffer
+        call print___operation_name
+        add esp, 4
+        call print___invalid_operand
+        ; Clear buffer before reading input again
+        push INPUT___OPERAND_ASCII_BUFFER_LEN
+        push dword [ebp + 8]
+        call utility___clear_buffer
+        add esp, 8
+        jmp input___read_operand___read_input
 
-    input___read_number___convert_from_ascii_to_number:
+    input___read_operand___convert_from_ascii_to_number:
         push dword [ebp + 12] ; Pushing the number buffer
         push dword [ebp + 8] ; Pushing the ASCII buffer
         call utility___convert_str_to_num
@@ -249,7 +244,7 @@ input___read_operand_1:
 
     push input___operand_1_number_buffer
     push input___operand_1_ascii_buffer
-    call input___read_number
+    call input___read_operand
 
     mov esp, ebp
     pop ebp
@@ -266,7 +261,7 @@ input___read_operand_2:
 
     push input___operand_2_number_buffer
     push input___operand_2_ascii_buffer
-    call input___read_number
+    call input___read_operand
 
     mov esp, ebp
     pop ebp
