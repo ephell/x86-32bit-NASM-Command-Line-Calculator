@@ -1,3 +1,5 @@
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/ephell/x86-32bit-NASM-Command-Line-Calculator)
+![GitHub last commit (by committer)](https://img.shields.io/github/last-commit/ephell/x86-32bit-NASM-Command-Line-Calculator)
 # ⌨️ Command Line Calculator 
 A command line calculator app written in x86 32-bit NASM on Linux. The goal of this project was to teach myself the basics of Assembly.
 
