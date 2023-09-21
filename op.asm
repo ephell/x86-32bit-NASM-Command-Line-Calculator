@@ -91,6 +91,10 @@ op___perform_chosen_operation:
     cmp al, "4"
     je division
 
+    op___perform_chosen_operation___print_result_and_return:
+        call op___print_result
+        jmp op___perform_chosen_operation___return
+
     op___perform_chosen_operation___return:
         mov esp, ebp
         pop ebp
@@ -105,7 +109,7 @@ addition:
     push op___result___ascii_buffer
     push op___result___number_buffer
     call utility___convert_num_to_str
-    jmp op___perform_chosen_operation___return
+    jmp op___perform_chosen_operation___print_result_and_return
 
 subtraction:
     mov eax, [input___operand_1_number_buffer]
@@ -116,7 +120,7 @@ subtraction:
     push op___result___ascii_buffer
     push op___result___number_buffer
     call utility___convert_num_to_str
-    jmp op___perform_chosen_operation___return
+    jmp op___perform_chosen_operation___print_result_and_return
 
 multiplication:
     mov eax, [input___operand_1_number_buffer]
@@ -127,7 +131,7 @@ multiplication:
     push op___result___ascii_buffer
     push op___result___number_buffer
     call utility___convert_num_to_str
-    jmp op___perform_chosen_operation___return
+    jmp op___perform_chosen_operation___print_result_and_return
 
 division:
     division___get_result_sign:
@@ -299,7 +303,7 @@ division:
         mov byte [edi], 0xa
         mov byte [edi + 1], 0
 
-        jmp op___perform_chosen_operation___return
+        jmp op___perform_chosen_operation___print_result_and_return
 
     division___division_by_zero:
         push input___operation_choice_ascii_buffer

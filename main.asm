@@ -39,7 +39,6 @@ _start:
         call input___read_operand_1
         call input___read_operand_2
         call op___perform_chosen_operation
-        call op___print_result
         call print___separator
         call print___ask_if_user_wants_to_continue
         call input___read_continue_choice
