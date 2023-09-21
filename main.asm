@@ -14,6 +14,7 @@ section .text
     extern print___operation_options
     extern print___select_operation
     extern print___ask_if_user_wants_to_continue
+    extern print___bye
     extern utility___clear_all_buffers
     extern input___read_operation_choice
     extern input___read_continue_choice
@@ -41,6 +42,9 @@ _start:
         cmp al, "1" ; 1 - continue, 0 - exit
         je _start_main_loop
 
-    mov eax, SYS_EXIT
-    mov ebx, 0
-    int 0x80
+
+    _start_exit:
+        call print___bye
+        mov eax, SYS_EXIT
+        mov ebx, 0
+        int 0x80

@@ -47,6 +47,8 @@ section .data
     MSG_LEN_OPERAND_1_OVERFLOW equ $ - MSG_OPERAND_1_OVERFLOW
     MSG_OPERAND_2_OVERFLOW db "Overflow! Operand 2 is too large!", 0xa
     MSG_LEN_OPERAND_2_OVERFLOW equ $ - MSG_OPERAND_2_OVERFLOW
+    MSG_BYE db "Bye!", 0xa
+    MSG_LEN_BYE equ $ - MSG_BYE
 
 section .text
     ; --------------------------------------
@@ -68,6 +70,7 @@ section .text
     global print___invalid_operand
     global print___operand_1_overflow
     global print___operand_2_overflow
+    global print___bye
 
 print___separator:
     push ebp
@@ -332,6 +335,20 @@ print___operand_2_overflow:
     mov ebx, STDOUT
     mov ecx, MSG_OPERAND_2_OVERFLOW
     mov edx, MSG_LEN_OPERAND_2_OVERFLOW
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___bye:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_BYE
+    mov edx, MSG_LEN_BYE
     int 0x80
 
     mov esp, ebp
