@@ -17,10 +17,7 @@ section .text
     extern utility___clear_all_buffers
     extern input___read_operation_choice
     extern input___read_continue_choice
-    extern input___read_operand_1
-    extern input___read_operand_2
     extern op___perform_chosen_operation
-    extern op___print_result
     ; Buffers
     extern input___continue_choice_ascii_buffer
 
@@ -36,10 +33,7 @@ _start:
         call print___select_operation
         call input___read_operation_choice
         call print___separator
-        call input___read_operand_1
-        call input___read_operand_2
         call op___perform_chosen_operation
-        call op___print_result
         call print___separator
         call print___ask_if_user_wants_to_continue
         call input___read_continue_choice

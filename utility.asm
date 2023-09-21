@@ -12,6 +12,8 @@ section .text
     extern input___operand_1_number_buffer
     extern input___operand_2_ascii_buffer
     extern input___operand_2_number_buffer
+    extern input___operand_1_overflow_flag_buffer
+    extern input___operand_2_overflow_flag_buffer
     extern op___result___ascii_buffer
     extern op___result___number_buffer
     extern op___div___quotient_ascii_buffer
@@ -27,6 +29,7 @@ section .text
     extern INPUT___CONTINUE_CHOICE_BUFFER_LEN
     extern INPUT___OPERAND_ASCII_BUFFER_LEN
     extern INPUT___OPERAND_NUMBER_BUFFER_LEN
+    extern INPUT___OPERAND_OVERFLOW_FLAG_BUFFER_LEN
     extern OP___RESULT___ASCII_BUFFER_LEN
     extern OP___RESULT___NUMBER_BUFFER_LEN
     extern OP___DIV___QUOTIENT_ASCII_BUFFER_LEN
@@ -70,6 +73,7 @@ utility___convert_str_to_num:
     ; Convert ASCII representation of a number into a literal number and store in buffer.
     ; Arg_1 (ebp+8) - address to buffer that holds number to be converted in ASCII.
     ; Arg_2 (ebp+12) - address to buffer that will hold the converted number.
+    ; Arg_3 (ebp+16) - address to buffer that will hold the overflow flag.
     push ebp
     mov ebp, esp
 
@@ -93,8 +97,14 @@ utility___convert_str_to_num:
         je utility___convert_str_to_num___save_converted_number
         sub al, '0'; Convert from ASCII to number
         imul ebx, 10 ; Multiply ebx by 10
+        jo utility___convert_str_to_num___set_overflow_flag ; If overflow occurs, set the overflow flag
         add ebx, eax ; ebx = ebx * 10 + eax
         jmp utility___convert_str_to_num___loop
+
+    utility___convert_str_to_num___set_overflow_flag:
+        mov edx, [ebp + 16] ; Load the overflow flag buffer address
+        mov byte [edx], "1" ; Set the overflow flag to 1
+        jmp utility___convert_str_to_num___return
 
     utility___convert_str_to_num___save_converted_number:
         mov edx, [ebp + 12] ; Loading the number buffer address into edx
@@ -103,10 +113,11 @@ utility___convert_str_to_num:
         neg ebx ; Negate the final number (if flag is non zero)
         utility___convert_str_to_num___store_value_into_buffer:
             mov [edx], ebx
-        
-    mov esp, ebp
-    pop ebp
-    ret
+    
+    utility___convert_str_to_num___return:
+        mov esp, ebp
+        pop ebp
+        ret
 
 utility___convert_num_to_str:
     ; Convert a literal number to its ASCII representation and store in buffer.
@@ -231,6 +242,14 @@ utility___clear_all_buffers:
     call utility___clear_buffer
     push OP___DIV___SIGN_FLAG_BUFFER_LEN
     push op___div___is_negative_final_result_buffer
+    call utility___clear_buffer
+
+    ; Clear overflow flag buffers
+    push INPUT___OPERAND_OVERFLOW_FLAG_BUFFER_LEN
+    push input___operand_1_overflow_flag_buffer
+    call utility___clear_buffer
+    push INPUT___OPERAND_OVERFLOW_FLAG_BUFFER_LEN
+    push input___operand_2_overflow_flag_buffer
     call utility___clear_buffer
 
     mov esp, ebp

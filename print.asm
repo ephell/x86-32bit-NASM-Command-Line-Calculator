@@ -35,12 +35,18 @@ section .data
     MSG_LEN_DIVISION_PREFIX equ $ - MSG_DIVISION_PREFIX
     MSG_CANT_DIVIDE_BY_ZERO db "Can't divide by zero!", 0xa
     MSG_LEN_CANT_DIVIDE_BY_ZERO equ $ - MSG_CANT_DIVIDE_BY_ZERO
-    MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED db "Result is too small to be displayed!", 0xa
-    MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED equ $ - MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+    MSG_RESULT_TOO_SMALL db "Overflow! Result is too small!", 0xa
+    MSG_LEN_RESULT_TOO_SMALL equ $ - MSG_RESULT_TOO_SMALL
+    MSG_RESULT_TOO_LARGE db "Overflow! Result is too large!", 0xa
+    MSG_LEN_RESULT_TOO_LARGE equ $ - MSG_RESULT_TOO_LARGE
     MSG_INVALID_CHOICE db "Invalid choice. Try again: "
     MSG_LEN_INVALID_CHOICE equ $ - MSG_INVALID_CHOICE
     MSG_INVALID_OPERAND db "Invalid operand. Try again: "
     MSG_LEN_INVALID_INPUT equ $ - MSG_INVALID_OPERAND
+    MSG_OPERAND_1_OVERFLOW db "Overflow! Operand 1 is too large!", 0xa
+    MSG_LEN_OPERAND_1_OVERFLOW equ $ - MSG_OPERAND_1_OVERFLOW
+    MSG_OPERAND_2_OVERFLOW db "Overflow! Operand 2 is too large!", 0xa
+    MSG_LEN_OPERAND_2_OVERFLOW equ $ - MSG_OPERAND_2_OVERFLOW
 
 section .text
     ; --------------------------------------
@@ -56,9 +62,12 @@ section .text
     global print___enter_operand_2
     global print___operation_name
     global print___cant_divide_by_zero
-    global print___result_too_small_to_be_displayed
+    global print___result_too_small
+    global print___result_too_large
     global print___invalid_choice
     global print___invalid_operand
+    global print___operand_1_overflow
+    global print___operand_2_overflow
 
 print___separator:
     push ebp
@@ -245,14 +254,28 @@ print___cant_divide_by_zero:
     pop ebp
     ret
 
-print___result_too_small_to_be_displayed:
+print___result_too_small:
     push ebp
     mov ebp, esp
 
     mov eax, SYS_WRITE
     mov ebx, STDOUT
-    mov ecx, MSG_RESULT_TOO_SMALL_TO_BE_DISPLAYED
-    mov edx, MSG_LEN_RESULT_TOO_SMALL_TO_BE_DISPLAYED
+    mov ecx, MSG_RESULT_TOO_SMALL
+    mov edx, MSG_LEN_RESULT_TOO_SMALL
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___result_too_large:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_RESULT_TOO_LARGE
+    mov edx, MSG_LEN_RESULT_TOO_LARGE
     int 0x80
 
     mov esp, ebp
@@ -281,6 +304,34 @@ print___invalid_operand:
     mov ebx, STDOUT
     mov ecx, MSG_INVALID_OPERAND
     mov edx, MSG_LEN_INVALID_INPUT
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___operand_1_overflow:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_OPERAND_1_OVERFLOW
+    mov edx, MSG_LEN_OPERAND_1_OVERFLOW
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+print___operand_2_overflow:
+    push ebp
+    mov ebp, esp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov ecx, MSG_OPERAND_2_OVERFLOW
+    mov edx, MSG_LEN_OPERAND_2_OVERFLOW
     int 0x80
 
     mov esp, ebp

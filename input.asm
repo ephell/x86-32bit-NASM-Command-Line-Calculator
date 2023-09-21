@@ -12,6 +12,7 @@ section .data
     INPUT___CONTINUE_CHOICE_BUFFER_LEN equ 255
     INPUT___OPERAND_ASCII_BUFFER_LEN equ 255
     INPUT___OPERAND_NUMBER_BUFFER_LEN equ 32
+    INPUT___OPERAND_OVERFLOW_FLAG_BUFFER_LEN equ 32
 
 section .bss
     input___operation_choice_ascii_buffer resb INPUT___OPERATION_CHOICE_BUFFER_LEN
@@ -20,6 +21,8 @@ section .bss
     input___operand_1_number_buffer resb INPUT___OPERAND_NUMBER_BUFFER_LEN
     input___operand_2_ascii_buffer resb INPUT___OPERAND_ASCII_BUFFER_LEN 
     input___operand_2_number_buffer resb INPUT___OPERAND_NUMBER_BUFFER_LEN
+    input___operand_1_overflow_flag_buffer resb INPUT___OPERAND_OVERFLOW_FLAG_BUFFER_LEN
+    input___operand_2_overflow_flag_buffer resb INPUT___OPERAND_OVERFLOW_FLAG_BUFFER_LEN
 
 section .text
     ; --------------------------------------
@@ -49,11 +52,14 @@ section .text
     global input___operand_1_number_buffer
     global input___operand_2_ascii_buffer
     global input___operand_2_number_buffer
+    global input___operand_1_overflow_flag_buffer
+    global input___operand_2_overflow_flag_buffer
     ; Constants
     global INPUT___OPERATION_CHOICE_BUFFER_LEN
     global INPUT___CONTINUE_CHOICE_BUFFER_LEN
     global INPUT___OPERAND_ASCII_BUFFER_LEN
     global INPUT___OPERAND_NUMBER_BUFFER_LEN
+    global INPUT___OPERAND_OVERFLOW_FLAG_BUFFER_LEN
 
 input___read_operation_choice:
     ; Read and validate the user's choice of operation (e.g., addition, subtraction).
@@ -175,6 +181,7 @@ input___read_operand:
     ; Read user input from stdin, convert string to number and store in buffer.
     ; Arg_1 (ebp+8) - address to buffer that holds users' input in ASCII.
     ; Arg_2 (ebp+12) - address to buffer that will hold the number.
+    ; Arg_3 (ebp+16) - address to buffer that will hold the overflow flag.
     push ebp
     mov ebp, esp
 
@@ -225,6 +232,7 @@ input___read_operand:
         jmp input___read_operand___read_input
 
     input___read_operand___convert_from_ascii_to_number:
+        push dword [ebp + 16] ; Pushing the overflow flag buffer
         push dword [ebp + 12] ; Pushing the number buffer
         push dword [ebp + 8] ; Pushing the ASCII buffer
         call utility___convert_str_to_num
@@ -242,6 +250,7 @@ input___read_operand_1:
 
     call print___enter_operand_1
 
+    push input___operand_1_overflow_flag_buffer
     push input___operand_1_number_buffer
     push input___operand_1_ascii_buffer
     call input___read_operand
@@ -259,6 +268,7 @@ input___read_operand_2:
 
     call print___enter_operand_2
 
+    push input___operand_2_overflow_flag_buffer
     push input___operand_2_number_buffer
     push input___operand_2_ascii_buffer
     call input___read_operand
