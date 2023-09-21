@@ -1,4 +1,4 @@
-# Command Line Calculator 
+# ⌨️ Command Line Calculator 
 A command line calculator app written in x86 32-bit NASM on Linux. The goal of this project was to teach myself the basics of Assembly.
 
 ## Features
