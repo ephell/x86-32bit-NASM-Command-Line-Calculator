@@ -41,15 +41,22 @@ section .text
     extern utility___convert_num_to_str
     extern utility___clear_buffer
     extern print___cant_divide_by_zero
-    extern print___result_too_small_to_be_displayed
+    extern print___result_too_small
+    extern print___result_too_large
     extern print___calculation_result
     extern print___operation_name
+    extern print___operand_1_overflow
+    extern print___operand_2_overflow
+    extern input___read_operand_1
+    extern input___read_operand_2
     ; Buffers
     extern input___operation_choice_ascii_buffer
     extern input___operand_1_ascii_buffer
     extern input___operand_1_number_buffer
     extern input___operand_2_ascii_buffer
     extern input___operand_2_number_buffer
+    extern input___operand_1_overflow_flag_buffer
+    extern input___operand_2_overflow_flag_buffer
     ; --------------------------------------
     ; Exports
     ; --------------------------------------
@@ -81,6 +88,17 @@ op___perform_chosen_operation:
     push ebp
     mov ebp, esp
 
+    ; Read operands from user input
+    call input___read_operand_1
+    call input___read_operand_2
+
+    ; Check for overflow flags in any of the operands
+    cmp byte [input___operand_1_overflow_flag_buffer], "1"
+    je op___perform_chosen_operation___operand_1_overflow
+    cmp byte [input___operand_2_overflow_flag_buffer], "1"
+    je op___perform_chosen_operation___operand_2_overflow
+
+    ; Select operation based on user input
     mov al, byte [input___operation_choice_ascii_buffer]
     cmp al, "1"
     je addition
@@ -91,19 +109,39 @@ op___perform_chosen_operation:
     cmp al, "4"
     je division
 
-    op___perform_chosen_operation___print_result_and_return:
-        call op___print_result
-        jmp op___perform_chosen_operation___return
-
     op___perform_chosen_operation___return:
         mov esp, ebp
         pop ebp
         ret
 
+    op___perform_chosen_operation___print_result_and_return:
+        call op___print_result
+        jmp op___perform_chosen_operation___return
+
+    op___perform_chosen_operation___operand_1_overflow:
+        push input___operation_choice_ascii_buffer
+        call print___operation_name
+        call print___operand_1_overflow
+        jmp op___perform_chosen_operation___return
+
+    op___perform_chosen_operation___operand_2_overflow:
+        push input___operation_choice_ascii_buffer
+        call print___operation_name
+        call print___operand_2_overflow
+        jmp op___perform_chosen_operation___return
+
+    op___perform_chosen_operation___result_overflow:
+        push input___operation_choice_ascii_buffer
+        call print___operation_name
+        call print___result_too_large
+        jmp op___perform_chosen_operation___return
+
 addition:
     mov eax, [input___operand_1_number_buffer]
     mov ebx, [input___operand_2_number_buffer]
     add eax, ebx
+    ; Check for overflow
+    jo op___perform_chosen_operation___result_overflow
     mov [op___result___number_buffer], eax
     ; Convert result from number to ASCII
     push op___result___ascii_buffer
@@ -115,6 +153,8 @@ subtraction:
     mov eax, [input___operand_1_number_buffer]
     mov ebx, [input___operand_2_number_buffer]
     sub eax, ebx
+    ; Check for overflow
+    jo op___perform_chosen_operation___result_overflow
     mov [op___result___number_buffer], eax
     ; Convert result from number to ASCII
     push op___result___ascii_buffer
@@ -126,6 +166,8 @@ multiplication:
     mov eax, [input___operand_1_number_buffer]
     mov ebx, [input___operand_2_number_buffer]
     imul eax, ebx
+    ; Check for overflow
+    jo op___perform_chosen_operation___result_overflow
     mov [op___result___number_buffer], eax
     ; Convert result from number to ASCII
     push op___result___ascii_buffer
@@ -314,7 +356,7 @@ division:
     division___result_too_small:
         push input___operation_choice_ascii_buffer
         call print___operation_name
-        call print___result_too_small_to_be_displayed
+        call print___result_too_small
         jmp op___perform_chosen_operation___return
 
 op___print_result:
