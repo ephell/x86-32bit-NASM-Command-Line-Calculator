@@ -42,7 +42,6 @@ _start:
         cmp al, "1" ; 1 - continue, 0 - exit
         je _start_main_loop
 
-
     _start_exit:
         call print___bye
         mov eax, SYS_EXIT
